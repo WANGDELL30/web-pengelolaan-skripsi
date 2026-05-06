@@ -101,7 +101,7 @@ $pageConfig = [
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'location_name', 'label' => 'Location Name', 'required' => true],
-        ['name' => 'environment_type', 'label' => 'Environment Type', 'type' => 'select', 'required' => true, 'options' => ['lapangan', 'hangar', 'pantai', 'gunung']],
+        ['name' => 'environment_type', 'label' => 'Environment Type', 'type' => 'select', 'required' => true, 'options' => ['lapangan', 'hangar', 'pantai', 'gunung', 'indoor', 'outdoor']],
         ['name' => 'test_point_code', 'label' => 'Test Point Code', 'required' => true],
         ['name' => 'direction', 'label' => 'Direction', 'type' => 'select', 'options' => ['north', 'south', 'east', 'west', 'vertical', 'diagonal']],
         ['name' => 'master_gps_latitude', 'label' => 'Master GPS Latitude', 'type' => 'number', 'step' => 'any', 'preserve_precision' => true, 'col' => 'col-md-3'],

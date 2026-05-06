@@ -578,6 +578,9 @@
             </a>
             
             <div class="sidebar-heading text-white-50 small mt-3 px-3">KONTROL KOMUNIKASI</div>
+            <a href="index.php?page=text-communication" class="nav-link <?php echo ($_GET['page'] ?? '') === 'text-communication' ? 'active' : ''; ?>">
+                <i class="fas fa-comments"></i> Text Communication
+            </a>
             <a href="index.php?page=command" class="nav-link <?php echo ($_GET['page'] ?? '') === 'command' ? 'active' : ''; ?>">
                 <i class="fas fa-terminal"></i> Command Execution
             </a>

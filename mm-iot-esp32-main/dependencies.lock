@@ -1,0 +1,52 @@
+dependencies:
+  idf:
+    source:
+      type: idf
+    version: 5.1.1
+  mm_shims:
+    dependencies: []
+    source:
+      path: C:\Users\arand\Documents\mm-iot-esp32-main\mm-iot-esp32-main\framework\mm_shims
+      type: local
+    version: 2.6.4-esp32
+  mmipal:
+    dependencies: []
+    source:
+      path: C:\Users\arand\Documents\mm-iot-esp32-main\mm-iot-esp32-main\framework\src\mmipal
+      type: local
+    version: 2.6.4-esp32
+  mmiperf:
+    dependencies: []
+    source:
+      path: C:\Users\arand\Documents\mm-iot-esp32-main\mm-iot-esp32-main\framework\src\mmiperf
+      type: local
+    version: 2.6.4-esp32
+  mmpktmem:
+    dependencies: []
+    source:
+      path: C:\Users\arand\Documents\mm-iot-esp32-main\mm-iot-esp32-main\framework\src\mmpktmem
+      type: local
+    version: 2.6.4-esp32
+  mmutils:
+    dependencies: []
+    source:
+      path: C:\Users\arand\Documents\mm-iot-esp32-main\mm-iot-esp32-main\framework\src\mmutils
+      type: local
+    version: 2.6.4-esp32
+  morselib:
+    dependencies: []
+    source:
+      path: C:\Users\arand\Documents\mm-iot-esp32-main\mm-iot-esp32-main\framework\morselib
+      type: local
+    version: 2.6.4-esp32
+direct_dependencies:
+- idf
+- mm_shims
+- mmipal
+- mmiperf
+- mmpktmem
+- mmutils
+- morselib
+manifest_hash: e14d13b485322a4000203dc6a764e3144a7c6406344ec0afe52fa0b0a57a7c73
+target: esp32s3
+version: 2.0.0

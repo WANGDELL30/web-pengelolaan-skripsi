@@ -4,10 +4,19 @@
 
 vendor/
 node_modules/
+.vscode/
 
 *.log
 *.tmp
 *.bak
+proxy_output.html
+
+mm-iot-esp32-main/build/
+mm-iot-esp32-main/**/build/
+mm-iot-esp32-main/mm-iot-esp32-main/
+mm-iot-esp32-main/**/*.elf
+mm-iot-esp32-main/**/*.bin
+mm-iot-esp32-main/**/*.map
 
 .DS_Store
 Thumbs.db

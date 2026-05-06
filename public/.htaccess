@@ -1,8 +1,10 @@
 # Security Headers
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
-    Header set X-Frame-Options "SAMEORIGIN"
     Header set X-XSS-Protection "1; mode=block"
+    <If "%{REQUEST_URI} !~ /master_proxy\.php/">
+        Header set X-Frame-Options "SAMEORIGIN"
+    </If>
 </IfModule>
 
 # Enable Rewrite Engine
