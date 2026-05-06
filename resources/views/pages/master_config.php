@@ -1,6 +1,9 @@
 <?php
-$masterConfigUrl = 'http://192.168.1.50/';
-$masterConfigProxyUrl = '/cgi-bin/luci/';
+$masterConfigBaseUrl = 'http://192.168.1.50';
+$masterConfigPath = '/cgi-bin/luci/';
+$masterConfigUrl = rtrim($masterConfigBaseUrl, '/') . $masterConfigPath;
+$masterConfigRootUrl = rtrim($masterConfigBaseUrl, '/') . '/';
+$masterConfigProxyUrl = 'master_proxy.php?path=' . rawurlencode($masterConfigPath);
 ?>
 
 <style>
@@ -106,6 +109,9 @@ $masterConfigProxyUrl = '/cgi-bin/luci/';
             <button type="button" class="btn btn-outline-primary btn-sm" id="reloadMasterConfig">
                 <i class="fas fa-rotate-right"></i> Reload
             </button>
+            <a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($masterConfigRootUrl); ?>" target="_blank" rel="noopener">
+                <i class="fas fa-network-wired"></i> IP
+            </a>
             <a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($masterConfigUrl); ?>" target="_blank" rel="noopener">
                 <i class="fas fa-up-right-from-square"></i> Tab
             </a>
@@ -123,7 +129,7 @@ $masterConfigProxyUrl = '/cgi-bin/luci/';
     </div>
 
     <div class="master-config-note">
-        Jika panel kosong atau ditolak browser, buka lewat tombol tab baru. Beberapa firmware perangkat memakai proteksi X-Frame-Options atau CSP sehingga tidak bisa ditampilkan di dalam iframe.
+        Panel ditampilkan melalui proxy lokal karena firmware LuCI memakai proteksi X-Frame-Options. Jika login atau halaman tertentu tetap ditolak, gunakan tombol Tab untuk membuka panel langsung.
     </div>
 </div>
 

@@ -5,6 +5,16 @@ $pageConfig = [
     'description' => 'Input pengujian enkripsi, sniffing, dan integritas data.',
     'table' => 'encryption_tests',
     'order' => 'test_date DESC, created_at DESC',
+    'chart_label_fields' => ['protocol_used', 'encryption_type'],
+    'chart_label_caption' => 'Label grafik: protocol - encryption type',
+    'chart_metrics' => [
+        ['field' => 'key_length_bit', 'label' => 'Key Length', 'unit' => 'bit', 'type' => 'bar'],
+    ],
+    'chart_status_field' => 'encryption_status',
+    'chart_notes' => [
+        'Status secure hanya tercapai bila sniffing unreadable dan data integrity valid.',
+        'Distribusi status membantu melihat berapa banyak pengujian yang masih insecure.',
+    ],
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'protocol_used', 'label' => 'Protocol Used', 'required' => true],

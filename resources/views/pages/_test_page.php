@@ -80,6 +80,25 @@ if (!function_exists('testPageFormatValue')) {
 
 if (!function_exists('testPageChartLabel')) {
     function testPageChartLabel($row, $labelField) {
+        if (is_callable($labelField)) {
+            return (string) call_user_func($labelField, $row);
+        }
+
+        if (is_array($labelField)) {
+            $parts = [];
+            foreach ($labelField as $field) {
+                $value = $row[$field] ?? '';
+                if ($value === null || $value === '') {
+                    continue;
+                }
+                if (in_array($field, ['test_date', 'analysis_date', 'created_at', 'updated_at'], true)) {
+                    $value = date('d M', strtotime($value));
+                }
+                $parts[] = (string) $value;
+            }
+            return $parts ? implode(' - ', $parts) : '-';
+        }
+
         $value = $row[$labelField] ?? '';
 
         if (!$value) {
@@ -94,10 +113,98 @@ if (!function_exists('testPageChartLabel')) {
     }
 }
 
+if (!function_exists('testPageMetricUnit')) {
+    function testPageMetricUnit($metric) {
+        if (isset($metric['unit'])) {
+            return (string) $metric['unit'];
+        }
+
+        $field = strtolower((string) ($metric['field'] ?? ''));
+        $label = strtolower((string) ($metric['label'] ?? ''));
+        $needle = $field . ' ' . $label;
+
+        if (strpos($needle, 'percent') !== false || strpos($needle, 'rate') !== false || strpos($needle, '%') !== false || strpos($needle, 'usage') !== false) {
+            return '%';
+        }
+        if (strpos($needle, 'rssi') !== false && strpos($needle, 'loss') === false) {
+            return 'dBm';
+        }
+        if (strpos($needle, 'snr') !== false || strpos($needle, 'penetration_loss') !== false || strpos($needle, 'rssi_loss') !== false) {
+            return 'dB';
+        }
+        if (strpos($needle, 'latency') !== false || strpos($needle, 'delay') !== false || strpos($needle, 'response_time') !== false || strpos($needle, 'command_time') !== false) {
+            return 'ms';
+        }
+        if (strpos($needle, 'throughput') !== false || strpos($needle, 'bitrate') !== false) {
+            return 'kbps';
+        }
+        if (strpos($needle, 'distance') !== false) {
+            return 'm';
+        }
+        if (strpos($needle, 'fps') !== false) {
+            return 'fps';
+        }
+        if (strpos($needle, 'power_w') !== false || strpos($needle, 'power') !== false) {
+            return 'W';
+        }
+        if (strpos($needle, 'energy') !== false) {
+            return 'Wh';
+        }
+        if (strpos($needle, 'runtime') !== false) {
+            return 'h';
+        }
+        if (strpos($needle, 'voltage') !== false) {
+            return 'V';
+        }
+        if (strpos($needle, 'current') !== false) {
+            return 'A';
+        }
+        if (strpos($needle, 'temperature') !== false || strpos($needle, 'temp') !== false) {
+            return 'C';
+        }
+        if (strpos($needle, 'key') !== false && strpos($needle, 'bit') !== false) {
+            return 'bit';
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('testPageAxisId')) {
+    function testPageAxisId($unit) {
+        $unit = (string) $unit;
+        if ($unit === '') {
+            return 'axis_value';
+        }
+        return 'axis_' . preg_replace('/[^A-Za-z0-9_]/', '_', strtolower($unit));
+    }
+}
+
+if (!function_exists('testPageMetricSummary')) {
+    function testPageMetricSummary($data) {
+        $values = array_values(array_filter($data, function ($value) {
+            return $value !== null && is_numeric($value);
+        }));
+
+        if (!$values) {
+            return ['avg' => null, 'min' => null, 'max' => null, 'last' => null];
+        }
+
+        $last = end($values);
+
+        return [
+            'avg' => round(array_sum($values) / count($values), 2),
+            'min' => round(min($values), 2),
+            'max' => round(max($values), 2),
+            'last' => round((float) $last, 2),
+        ];
+    }
+}
+
 if (!function_exists('testPageBuildCharts')) {
     function testPageBuildCharts($pageConfig, $rows) {
-        $chartRows = array_reverse(array_slice($rows, 0, 20));
-        $labelField = $pageConfig['chart_label'] ?? null;
+        $chartRows = array_reverse(array_slice($rows, 0, $pageConfig['chart_limit'] ?? 24));
+        $labelField = $pageConfig['chart_label_fields'] ?? ($pageConfig['chart_label'] ?? null);
 
         if (!$labelField) {
             foreach (['test_date', 'analysis_date', 'created_at'] as $candidate) {
@@ -139,32 +246,62 @@ if (!function_exists('testPageBuildCharts')) {
             }
         }
 
-        $metricColumns = array_slice($metricColumns, 0, 4);
+        $metricColumns = array_slice($metricColumns, 0, $pageConfig['chart_metric_limit'] ?? 4);
         $labels = [];
+        $contextLabels = [];
 
         foreach ($chartRows as $row) {
             $labels[] = testPageChartLabel($row, $labelField);
+            $contextParts = [];
+            foreach (['test_date', 'location_name', 'node_id', 'device_id', 'target_node_id', 'command_type'] as $field) {
+                if (!empty($row[$field])) {
+                    $contextParts[] = in_array($field, ['test_date'], true) ? formatDate($row[$field]) : (string) $row[$field];
+                }
+            }
+            $contextLabels[] = $contextParts ? implode(' | ', array_unique($contextParts)) : '';
         }
 
         $datasets = [];
-        $colors = ['#1e3c72', '#28a745', '#fd7e14', '#dc3545'];
+        $summaryCards = [];
+        $colors = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2'];
 
         foreach ($metricColumns as $index => $metric) {
             $data = [];
+            $unit = testPageMetricUnit($metric);
+            $axisId = $metric['axis'] ?? testPageAxisId($unit);
+            $chartType = $metric['type'] ?? (in_array($unit, ['%', 'ms'], true) ? 'bar' : 'line');
 
             foreach ($chartRows as $row) {
                 $value = $row[$metric['field']] ?? 0;
                 $data[] = is_numeric($value) ? (float) $value : null;
             }
 
+            $summary = testPageMetricSummary($data);
+
             $datasets[] = [
                 'label' => $metric['label'],
                 'data' => $data,
+                'type' => $chartType,
                 'borderColor' => $colors[$index % count($colors)],
-                'backgroundColor' => $colors[$index % count($colors)] . '33',
-                'borderWidth' => 2,
-                'tension' => 0.3,
-                'fill' => false,
+                'backgroundColor' => $colors[$index % count($colors)] . ($chartType === 'bar' ? 'B8' : '26'),
+                'borderWidth' => $chartType === 'bar' ? 1 : 3,
+                'tension' => 0.35,
+                'fill' => $chartType === 'line' ? false : true,
+                'pointRadius' => $chartType === 'line' ? 4 : 0,
+                'pointHoverRadius' => 7,
+                'yAxisID' => $axisId,
+                'unit' => $unit,
+                'field' => $metric['field'],
+            ];
+
+            $summaryCards[] = [
+                'label' => $metric['label'],
+                'unit' => $unit,
+                'avg' => $summary['avg'],
+                'min' => $summary['min'],
+                'max' => $summary['max'],
+                'last' => $summary['last'],
+                'color' => $colors[$index % count($colors)],
             ];
         }
 
@@ -197,9 +334,13 @@ if (!function_exists('testPageBuildCharts')) {
 
         return [
             'labels' => $labels,
+            'contextLabels' => $contextLabels,
             'datasets' => $datasets,
+            'summaryCards' => $summaryCards,
             'statusLabels' => $statusLabels,
             'statusValues' => $statusValues,
+            'labelCaption' => $pageConfig['chart_label_caption'] ?? 'Urutan data terbaru',
+            'notes' => $pageConfig['chart_notes'] ?? [],
         ];
     }
 }
@@ -370,25 +511,54 @@ $detailLabels['updated_at'] = 'Updated At';
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
             <h4 class="mb-1"><i class="fas fa-chart-line"></i> Grafik Hasil Olahan</h4>
-            <p class="text-muted mb-0">Visualisasi otomatis dari data terbaru yang tersimpan.</p>
+            <p class="text-muted mb-0">Visualisasi otomatis dari data terbaru yang tersimpan, lengkap dengan satuan, tren, dan ringkasan pembacaan.</p>
         </div>
     </div>
+
+    <?php if (count($chartData['summaryCards']) > 0): ?>
+        <div class="row test-chart-summary-grid">
+            <?php foreach ($chartData['summaryCards'] as $card): ?>
+                <div class="col-md-6 col-xl-3 mb-3">
+                    <div class="test-chart-summary-card" style="--summary-color: <?php echo htmlspecialchars($card['color']); ?>;">
+                        <span><?php echo htmlspecialchars($card['label']); ?></span>
+                        <strong>
+                            <?php echo $card['avg'] === null ? '-' : number_format((float) $card['avg'], 2); ?>
+                            <?php echo htmlspecialchars($card['unit']); ?>
+                        </strong>
+                        <small>
+                            Avg | Min <?php echo $card['min'] === null ? '-' : number_format((float) $card['min'], 2); ?>
+                            | Max <?php echo $card['max'] === null ? '-' : number_format((float) $card['max'], 2); ?>
+                        </small>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
 
     <div class="row">
         <div class="<?php echo count($chartData['statusLabels']) > 0 ? 'col-xl-8' : 'col-12'; ?> mb-4">
             <div class="card h-100">
                 <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold text-primary">Tren Metrik Utama</h6>
+                    <div>
+                        <h6 class="m-0 font-weight-bold text-primary">Tren Metrik Utama</h6>
+                        <small class="text-muted"><?php echo htmlspecialchars($chartData['labelCaption']); ?></small>
+                    </div>
                     <button type="button" class="btn btn-outline-primary btn-sm chart-download-btn" data-chart-target="<?php echo $chartBaseId; ?>MetricChart">
                         <i class="fas fa-download"></i> PNG
                     </button>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container">
+                    <div class="chart-container test-metric-chart-container">
                         <canvas id="<?php echo $chartBaseId; ?>MetricChart"></canvas>
                     </div>
                     <?php if (count($chartData['datasets']) === 0): ?>
                         <p class="text-muted text-center mb-0">Belum ada data angka untuk ditampilkan.</p>
+                    <?php elseif (count($chartData['notes']) > 0): ?>
+                        <div class="test-chart-notes mt-3">
+                            <?php foreach ($chartData['notes'] as $note): ?>
+                                <span><i class="fas fa-circle-info"></i> <?php echo htmlspecialchars($note); ?></span>
+                            <?php endforeach; ?>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -398,13 +568,16 @@ $detailLabels['updated_at'] = 'Updated At';
             <div class="col-xl-4 mb-4">
                 <div class="card h-100">
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                        <h6 class="m-0 font-weight-bold text-primary">Distribusi Status</h6>
+                        <div>
+                            <h6 class="m-0 font-weight-bold text-primary">Distribusi Status</h6>
+                            <small class="text-muted">Proporsi kategori hasil pengujian</small>
+                        </div>
                         <button type="button" class="btn btn-outline-primary btn-sm chart-download-btn" data-chart-target="<?php echo $chartBaseId; ?>StatusChart">
                             <i class="fas fa-download"></i> PNG
                         </button>
                     </div>
                     <div class="card-body">
-                        <div class="chart-container">
+                        <div class="chart-container test-status-chart-container">
                             <canvas id="<?php echo $chartBaseId; ?>StatusChart"></canvas>
                         </div>
                     </div>
@@ -625,29 +798,169 @@ $(function() {
         });
     }
 
+    var chartContextLabels = <?php echo json_encode($chartData['contextLabels'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
     var metricCanvas = document.getElementById('<?php echo $chartBaseId; ?>MetricChart');
     var metricDatasets = <?php echo json_encode($chartData['datasets']); ?>;
+
+    function formatMetricValue(value, unit) {
+        if (value === null || value === undefined || isNaN(Number(value))) {
+            return '-';
+        }
+
+        var number = Number(value);
+        var decimals = Math.abs(number) >= 1000 || unit === 'bit' ? 0 : 2;
+        return number.toLocaleString('id-ID', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        }) + (unit ? ' ' + unit : '');
+    }
+
+    function statusColor(label) {
+        var key = String(label || '').toLowerCase();
+        var colors = {
+            success: '#16a34a',
+            good: '#16a34a',
+            secure: '#16a34a',
+            valid: '#16a34a',
+            unreadable: '#16a34a',
+            normal: '#0891b2',
+            moderate: '#0891b2',
+            medium: '#d97706',
+            warning: '#d97706',
+            low: '#65a30d',
+            high: '#dc2626',
+            fail: '#dc2626',
+            failed: '#dc2626',
+            poor: '#dc2626',
+            insecure: '#dc2626',
+            invalid: '#dc2626',
+            readable: '#dc2626',
+            timeout: '#dc2626'
+        };
+
+        return colors[key] || '#2563eb';
+    }
+
+    var testEmptyChartPlugin = {
+        id: 'testEmptyChartPlugin',
+        afterDraw: function(chart, args, options) {
+            var hasData = chart.data.datasets.some(function(dataset) {
+                return (dataset.data || []).some(function(value) {
+                    return value !== null && value !== undefined && !isNaN(Number(value));
+                });
+            });
+
+            if (hasData) return;
+
+            var ctx = chart.ctx;
+            var area = chart.chartArea;
+            ctx.save();
+            ctx.fillStyle = '#64748b';
+            ctx.font = '600 14px Segoe UI, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(options.message || 'Belum ada data grafik', (area.left + area.right) / 2, (area.top + area.bottom) / 2);
+            ctx.restore();
+        }
+    };
+
+    function buildMetricScales(datasets) {
+        var usedAxes = [];
+        datasets.forEach(function(dataset) {
+            if (usedAxes.indexOf(dataset.yAxisID) === -1) {
+                usedAxes.push(dataset.yAxisID);
+            }
+        });
+
+        var scales = {
+            x: {
+                ticks: {
+                    maxRotation: 0,
+                    autoSkip: true,
+                    callback: function(value) {
+                        var label = this.getLabelForValue(value);
+                        return label && label.length > 18 ? label.substring(0, 17) + '...' : label;
+                    }
+                },
+                grid: {
+                    display: false
+                }
+            }
+        };
+
+        usedAxes.forEach(function(axisId, index) {
+            var sample = datasets.find(function(dataset) { return dataset.yAxisID === axisId; }) || {};
+            var unit = sample.unit || '';
+            scales[axisId] = {
+                type: 'linear',
+                display: true,
+                position: index % 2 === 0 ? 'left' : 'right',
+                beginAtZero: unit !== 'dBm',
+                suggestedMin: unit === 'dBm' ? -100 : undefined,
+                suggestedMax: unit === '%' ? 100 : (unit === 'score' ? 5 : undefined),
+                min: unit === '%' ? 0 : undefined,
+                max: unit === '%' ? 100 : undefined,
+                title: {
+                    display: true,
+                    text: unit ? 'Nilai (' + unit + ')' : 'Nilai'
+                },
+                ticks: {
+                    callback: function(value) {
+                        return unit ? value + ' ' + unit : value;
+                    }
+                },
+                grid: {
+                    color: index === 0 ? 'rgba(15, 23, 42, 0.1)' : 'rgba(15, 23, 42, 0.04)',
+                    drawOnChartArea: index === 0
+                }
+            };
+        });
+
+        return scales;
+    }
 
     if (metricCanvas && metricDatasets.length > 0) {
         new Chart(metricCanvas.getContext('2d'), {
             type: 'line',
             data: {
-                labels: <?php echo json_encode($chartData['labels']); ?>,
+                labels: <?php echo json_encode($chartData['labels'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>,
                 datasets: metricDatasets
             },
+            plugins: [testEmptyChartPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
                 plugins: {
+                    testEmptyChartPlugin: {
+                        message: 'Belum ada nilai metrik'
+                    },
                     legend: {
-                        position: 'bottom'
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 18
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        titleMarginBottom: 8,
+                        padding: 12,
+                        callbacks: {
+                            afterTitle: function(items) {
+                                if (!items.length) return '';
+                                return chartContextLabels[items[0].dataIndex] || '';
+                            },
+                            label: function(context) {
+                                return context.dataset.label + ': ' + formatMetricValue(context.raw, context.dataset.unit || '');
+                            }
+                        }
                     }
                 },
-                scales: {
-                    y: {
-                        beginAtZero: false
-                    }
-                }
+                scales: buildMetricScales(metricDatasets)
             }
         });
     }
@@ -661,16 +974,54 @@ $(function() {
                 labels: <?php echo json_encode($chartData['statusLabels']); ?>,
                 datasets: [{
                     data: <?php echo json_encode($chartData['statusValues']); ?>,
-                    backgroundColor: ['#28a745', '#fd7e14', '#dc3545', '#1e3c72', '#6c757d', '#17a2b8'],
-                    borderWidth: 1
+                    backgroundColor: <?php echo json_encode(array_map(function ($label) { return null; }, $chartData['statusLabels'])); ?>.map(function(empty, index) {
+                        return statusColor(<?php echo json_encode($chartData['statusLabels']); ?>[index]);
+                    }),
+                    borderColor: '#ffffff',
+                    borderWidth: 3
                 }]
             },
+            plugins: window.ChartDataLabels ? [ChartDataLabels, testEmptyChartPlugin] : [testEmptyChartPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                cutout: '58%',
                 plugins: {
+                    testEmptyChartPlugin: {
+                        message: 'Belum ada status'
+                    },
                     legend: {
-                        position: 'bottom'
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 16
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                var total = context.dataset.data.reduce(function(sum, value) {
+                                    return sum + Number(value || 0);
+                                }, 0);
+                                var value = Number(context.raw || 0);
+                                var percent = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                return context.label + ': ' + value + ' data (' + percent + '%)';
+                            }
+                        }
+                    },
+                    datalabels: {
+                        color: '#0f172a',
+                        formatter: function(value, context) {
+                            var total = context.dataset.data.reduce(function(sum, item) {
+                                return sum + Number(item || 0);
+                            }, 0);
+                            if (!value || total === 0) return '';
+                            return ((value / total) * 100).toFixed(0) + '%';
+                        },
+                        font: {
+                            weight: '700',
+                            size: 13
+                        }
                     }
                 }
             }
@@ -679,3 +1030,73 @@ $(function() {
     <?php endif; ?>
 });
 </script>
+
+<style>
+.test-chart-summary-grid {
+    margin-bottom: 8px;
+}
+.test-chart-summary-card {
+    height: 100%;
+    min-height: 108px;
+    padding: 14px 16px;
+    border: 1px solid #dbe4ef;
+    border-left: 5px solid var(--summary-color, #2563eb);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+.test-chart-summary-card span,
+.test-chart-summary-card small {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+.test-chart-summary-card strong {
+    display: block;
+    margin: 7px 0 5px;
+    color: #0f172a;
+    font-size: 22px;
+    font-weight: 750;
+    line-height: 1.1;
+}
+.test-metric-chart-container {
+    height: 390px;
+    min-height: 390px;
+}
+.test-status-chart-container {
+    height: 390px;
+    min-height: 390px;
+}
+.test-chart-notes {
+    display: grid;
+    gap: 8px;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.45;
+}
+.test-chart-notes span {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 9px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+.test-chart-notes i {
+    margin-top: 2px;
+    color: #2563eb;
+}
+@media (max-width: 767.98px) {
+    .test-metric-chart-container,
+    .test-status-chart-container {
+        height: 340px;
+        min-height: 340px;
+    }
+    .test-chart-summary-card strong {
+        font-size: 20px;
+    }
+}
+</style>

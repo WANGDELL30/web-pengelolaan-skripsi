@@ -5,6 +5,18 @@ $pageConfig = [
     'description' => 'Input pengujian throughput, PDR, dan data loss.',
     'table' => 'throughput_tests',
     'order' => 'test_date DESC, created_at DESC',
+    'chart_label_fields' => ['node_id', 'distance_meter'],
+    'chart_label_caption' => 'Label grafik: node - distance meter',
+    'chart_metrics' => [
+        ['field' => 'throughput_kbps', 'label' => 'Throughput', 'unit' => 'kbps', 'type' => 'line'],
+        ['field' => 'packet_delivery_ratio_percent', 'label' => 'PDR', 'unit' => '%', 'type' => 'bar'],
+        ['field' => 'data_loss_percent', 'label' => 'Data Loss', 'unit' => '%', 'type' => 'bar'],
+        ['field' => 'snr_db', 'label' => 'SNR', 'unit' => 'dB', 'type' => 'line'],
+    ],
+    'chart_notes' => [
+        'Throughput dan PDR yang tinggi menandakan transfer data berjalan baik.',
+        'Data Loss yang naik biasanya berbanding terbalik dengan kualitas link.',
+    ],
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'location_name', 'label' => 'Location Name', 'required' => true],

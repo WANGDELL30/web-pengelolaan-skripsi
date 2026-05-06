@@ -544,6 +544,11 @@
             <a href="index.php" class="nav-link <?php echo empty($_GET['page']) || $_GET['page'] === 'dashboard' ? 'active' : ''; ?>">
                 <i class="fas fa-tachometer-alt"></i> Dashboard
             </a>
+            <div class="sidebar-heading text-white-50 small mt-3 px-3">KONFIGURASI MASTER</div>
+            <a href="index.php?page=master-config" class="nav-link <?php echo ($_GET['page'] ?? '') === 'master-config' ? 'active' : ''; ?>">
+                <i class="fas fa-sliders"></i> Master Config
+            </a>
+
             <div class="sidebar-heading text-white-50 small mt-3 px-3">PENGUJIAN KOMUNIKASI</div>
             <a href="index.php?page=connectivity" class="nav-link <?php echo ($_GET['page'] ?? '') === 'connectivity' ? 'active' : ''; ?>">
                 <i class="fas fa-link"></i> Connectivity Test
@@ -570,9 +575,6 @@
             </a>
             <a href="index.php?page=power" class="nav-link <?php echo ($_GET['page'] ?? '') === 'power' ? 'active' : ''; ?>">
                 <i class="fas fa-battery-full"></i> Power Test
-            </a>
-            <a href="index.php?page=master-config" class="nav-link <?php echo ($_GET['page'] ?? '') === 'master-config' ? 'active' : ''; ?>">
-                <i class="fas fa-sliders"></i> Master Config
             </a>
             
             <div class="sidebar-heading text-white-50 small mt-3 px-3">KONTROL KOMUNIKASI</div>

@@ -5,6 +5,19 @@ $pageConfig = [
     'description' => 'Input pengujian ketahanan terhadap interferensi.',
     'table' => 'interference_tests',
     'order' => 'test_date DESC, created_at DESC',
+    'chart_label_fields' => ['interference_level', 'distance_meter'],
+    'chart_label_caption' => 'Label grafik: level interferensi - distance meter',
+    'chart_metrics' => [
+        ['field' => 'throughput_kbps', 'label' => 'Throughput', 'unit' => 'kbps', 'type' => 'line'],
+        ['field' => 'latency_ms', 'label' => 'Latency', 'unit' => 'ms', 'type' => 'bar'],
+        ['field' => 'packet_loss_percent', 'label' => 'Packet Loss', 'unit' => '%', 'type' => 'bar'],
+        ['field' => 'snr_db', 'label' => 'SNR', 'unit' => 'dB', 'type' => 'line'],
+    ],
+    'chart_status_field' => 'interference_level',
+    'chart_notes' => [
+        'Interferensi buruk biasanya terlihat dari latency dan packet loss yang naik.',
+        'Throughput dan SNR yang turun menunjukkan kualitas komunikasi melemah.',
+    ],
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'location_name', 'label' => 'Location Name', 'required' => true],

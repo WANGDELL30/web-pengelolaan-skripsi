@@ -5,6 +5,19 @@ $pageConfig = [
     'description' => 'Input pengujian pengiriman dan eksekusi command ke node target.',
     'table' => 'command_execution_tests',
     'order' => 'test_date DESC, created_at DESC',
+    'chart_label_fields' => ['command_type', 'target_node_id'],
+    'chart_label_caption' => 'Label grafik: command - target node',
+    'chart_metrics' => [
+        ['field' => 'command_delivery_delay', 'label' => 'Delivery Delay', 'unit' => 'ms', 'type' => 'bar'],
+        ['field' => 'command_execution_delay', 'label' => 'Execution Delay', 'unit' => 'ms', 'type' => 'bar'],
+        ['field' => 'total_command_time', 'label' => 'Total Command Time', 'unit' => 'ms', 'type' => 'line'],
+        ['field' => 'command_success_rate', 'label' => 'Success Rate', 'unit' => '%', 'type' => 'bar'],
+    ],
+    'chart_status_field' => 'execution_status',
+    'chart_notes' => [
+        'Delivery delay membaca waktu command sampai ke node.',
+        'Execution delay membaca waktu node mengeksekusi command setelah diterima.',
+    ],
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'command_type', 'label' => 'Command Type', 'type' => 'select', 'options' => ['reset', 'shutdown', 'restart', 'turn_on', 'turn_off', 'configuration_update']],

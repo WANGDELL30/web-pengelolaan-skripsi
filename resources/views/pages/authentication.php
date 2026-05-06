@@ -5,6 +5,21 @@ $pageConfig = [
     'description' => 'Input pengujian autentikasi user, metode login, dan tingkat keberhasilan.',
     'table' => 'authentication_tests',
     'order' => 'test_date DESC, created_at DESC',
+    'chart_label_fields' => ['login_attempt_type', 'user_role'],
+    'chart_label_caption' => 'Label grafik: attempt type - user role',
+    'chart_metric_limit' => 5,
+    'chart_metrics' => [
+        ['field' => 'attempt_count', 'label' => 'Attempts', 'unit' => '', 'type' => 'bar'],
+        ['field' => 'success_count', 'label' => 'Success Count', 'unit' => '', 'type' => 'bar'],
+        ['field' => 'failed_count', 'label' => 'Failed Count', 'unit' => '', 'type' => 'bar'],
+        ['field' => 'authentication_success_rate', 'label' => 'Success Rate', 'unit' => '%', 'type' => 'line'],
+        ['field' => 'authentication_failure_rate', 'label' => 'Failure Rate', 'unit' => '%', 'type' => 'line'],
+    ],
+    'chart_status_field' => 'login_attempt_type',
+    'chart_notes' => [
+        'Success rate tinggi menunjukkan skenario autentikasi valid berjalan baik.',
+        'Failure rate penting untuk membaca percobaan login yang ditolak atau salah password.',
+    ],
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'user_role', 'label' => 'User Role', 'type' => 'select', 'options' => ['admin', 'operator', 'viewer']],

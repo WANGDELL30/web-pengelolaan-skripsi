@@ -5,6 +5,19 @@ $pageConfig = [
     'description' => 'Input waktu respons command/request dari node target.',
     'table' => 'response_time_tests',
     'order' => 'test_date DESC, created_at DESC',
+    'chart_label_fields' => ['command_type', 'target_node_id'],
+    'chart_label_caption' => 'Label grafik: command - target node',
+    'chart_metrics' => [
+        ['field' => 'response_time_total_ms', 'label' => 'Response Time', 'unit' => 'ms', 'type' => 'bar'],
+        ['field' => 'average_response_time', 'label' => 'Average Response', 'unit' => 'ms', 'type' => 'line'],
+        ['field' => 'minimum_response_time', 'label' => 'Minimum Response', 'unit' => 'ms', 'type' => 'line'],
+        ['field' => 'maximum_response_time', 'label' => 'Maximum Response', 'unit' => 'ms', 'type' => 'line'],
+    ],
+    'chart_status_field' => 'status',
+    'chart_notes' => [
+        'Response time makin rendah berarti command/request makin cepat dijawab.',
+        'Perbedaan minimum dan maximum membantu melihat konsistensi respons.',
+    ],
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'command_type', 'label' => 'Command Type', 'required' => true],

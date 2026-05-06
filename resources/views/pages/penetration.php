@@ -5,6 +5,18 @@ $pageConfig = [
     'description' => 'Input data penetrasi sinyal terhadap hambatan dan kondisi LOS/NLOS.',
     'table' => 'signal_penetration_tests',
     'order' => 'test_date DESC, created_at DESC',
+    'chart_label_fields' => ['obstacle_type', 'distance_meter'],
+    'chart_label_caption' => 'Label grafik: obstacle - distance meter',
+    'chart_metrics' => [
+        ['field' => 'rssi_before_dbm', 'label' => 'RSSI Before', 'unit' => 'dBm', 'type' => 'line'],
+        ['field' => 'rssi_after_dbm', 'label' => 'RSSI After', 'unit' => 'dBm', 'type' => 'line'],
+        ['field' => 'rssi_loss', 'label' => 'RSSI Loss', 'unit' => 'dB', 'type' => 'bar'],
+        ['field' => 'packet_loss_percent', 'label' => 'Packet Loss', 'unit' => '%', 'type' => 'bar'],
+    ],
+    'chart_notes' => [
+        'RSSI After yang lebih mendekati 0 dBm berarti sinyal setelah hambatan masih lebih kuat.',
+        'RSSI Loss dan Packet Loss yang makin tinggi menunjukkan hambatan makin berdampak pada link.',
+    ],
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'location_name', 'label' => 'Location Name', 'required' => true],

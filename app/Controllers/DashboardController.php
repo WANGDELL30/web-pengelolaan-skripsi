@@ -138,19 +138,65 @@ class DashboardController {
         $data = [];
         
         // Distance vs RSSI (from range tests)
-        $data['distance_rssi'] = fetchAll("SELECT distance_actual_meter, rssi_dbm FROM range_tests WHERE distance_actual_meter IS NOT NULL AND rssi_dbm IS NOT NULL ORDER BY distance_actual_meter LIMIT 20");
+        $data['distance_rssi'] = fetchAll("
+            SELECT distance_actual_meter, rssi_dbm, location_name, test_point_code, status_result, test_date
+            FROM range_tests
+            WHERE distance_actual_meter IS NOT NULL AND rssi_dbm IS NOT NULL
+            ORDER BY distance_actual_meter
+            LIMIT 30
+        ");
         
         // Distance vs SNR
-        $data['distance_snr'] = fetchAll("SELECT distance_actual_meter, snr_db FROM range_tests WHERE distance_actual_meter IS NOT NULL AND snr_db IS NOT NULL ORDER BY distance_actual_meter LIMIT 20");
+        $data['distance_snr'] = fetchAll("
+            SELECT distance_actual_meter, snr_db, location_name, test_point_code, status_result, test_date
+            FROM range_tests
+            WHERE distance_actual_meter IS NOT NULL AND snr_db IS NOT NULL
+            ORDER BY distance_actual_meter
+            LIMIT 30
+        ");
         
         // Distance vs Bitrate
-        $data['distance_bitrate'] = fetchAll("SELECT distance_actual_meter, bitrate_kbps FROM range_tests WHERE distance_actual_meter IS NOT NULL AND bitrate_kbps IS NOT NULL ORDER BY distance_actual_meter LIMIT 20");
+        $data['distance_bitrate'] = fetchAll("
+            SELECT distance_actual_meter, bitrate_kbps, location_name, test_point_code, status_result, test_date
+            FROM range_tests
+            WHERE distance_actual_meter IS NOT NULL AND bitrate_kbps IS NOT NULL
+            ORDER BY distance_actual_meter
+            LIMIT 30
+        ");
         
         // Distance vs Latency
-        $data['distance_latency'] = fetchAll("SELECT distance_meter, AVG(latency_ms) as avg_latency FROM latency_tests WHERE distance_meter IS NOT NULL AND latency_ms IS NOT NULL GROUP BY distance_meter ORDER BY distance_meter LIMIT 20");
+        $data['distance_latency'] = fetchAll("
+            SELECT
+                distance_meter,
+                AVG(latency_ms) as avg_latency,
+                AVG(jitter_ms) as avg_jitter,
+                AVG(packet_loss_percent) as avg_packet_loss,
+                COUNT(*) as total_tests,
+                MIN(test_date) as first_test_date,
+                MAX(test_date) as last_test_date
+            FROM latency_tests
+            WHERE distance_meter IS NOT NULL AND latency_ms IS NOT NULL
+            GROUP BY distance_meter
+            ORDER BY distance_meter
+            LIMIT 30
+        ");
         
         // Distance vs Throughput
-        $data['distance_throughput'] = fetchAll("SELECT distance_meter, AVG(throughput_kbps) as avg_throughput FROM throughput_tests WHERE distance_meter IS NOT NULL AND throughput_kbps IS NOT NULL GROUP BY distance_meter ORDER BY distance_meter LIMIT 20");
+        $data['distance_throughput'] = fetchAll("
+            SELECT
+                distance_meter,
+                AVG(throughput_kbps) as avg_throughput,
+                AVG(packet_delivery_ratio_percent) as avg_pdr,
+                AVG(data_loss_percent) as avg_data_loss,
+                COUNT(*) as total_tests,
+                MIN(test_date) as first_test_date,
+                MAX(test_date) as last_test_date
+            FROM throughput_tests
+            WHERE distance_meter IS NOT NULL AND throughput_kbps IS NOT NULL
+            GROUP BY distance_meter
+            ORDER BY distance_meter
+            LIMIT 30
+        ");
         
         return $data;
     }

@@ -5,6 +5,19 @@ $pageConfig = [
     'description' => 'Input konsumsi daya, energi, dan estimasi runtime perangkat.',
     'table' => 'power_consumption_tests',
     'order' => 'test_date DESC, created_at DESC',
+    'chart_label_fields' => ['device_id', 'test_date'],
+    'chart_label_caption' => 'Label grafik: device - tanggal test',
+    'chart_metrics' => [
+        ['field' => 'power_w', 'label' => 'Power', 'unit' => 'W', 'type' => 'bar'],
+        ['field' => 'estimated_runtime_hour', 'label' => 'Runtime', 'unit' => 'h', 'type' => 'line'],
+        ['field' => 'cpu_usage_percent', 'label' => 'CPU Usage', 'unit' => '%', 'type' => 'bar'],
+        ['field' => 'cpu_temperature_c', 'label' => 'CPU Temp', 'unit' => 'C', 'type' => 'line'],
+    ],
+    'chart_status_field' => 'device_type',
+    'chart_notes' => [
+        'Power tinggi biasanya mengurangi estimasi runtime baterai.',
+        'CPU usage dan CPU temperature membantu membaca beban perangkat saat pengujian.',
+    ],
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'device_id', 'label' => 'Device ID', 'required' => true],

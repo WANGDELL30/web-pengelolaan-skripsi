@@ -5,6 +5,19 @@ $pageConfig = [
     'description' => 'Input pengujian slave camera, delay kamera, FPS, dan kualitas gambar.',
     'table' => 'slave_camera_tests',
     'order' => 'test_date DESC, created_at DESC',
+    'chart_label_fields' => ['node_id', 'distance_meter'],
+    'chart_label_caption' => 'Label grafik: node - distance meter',
+    'chart_metrics' => [
+        ['field' => 'fps', 'label' => 'FPS', 'unit' => 'fps', 'type' => 'line'],
+        ['field' => 'image_quality_score', 'label' => 'Image Quality', 'unit' => 'score', 'type' => 'bar'],
+        ['field' => 'camera_delay_ms', 'label' => 'Camera Delay', 'unit' => 'ms', 'type' => 'bar'],
+        ['field' => 'packet_loss_percent', 'label' => 'Packet Loss', 'unit' => '%', 'type' => 'bar'],
+    ],
+    'chart_status_field' => 'camera_quality_category',
+    'chart_notes' => [
+        'FPS dan image quality tinggi berarti video lebih lancar dan gambar lebih jelas.',
+        'Camera delay dan packet loss rendah berarti monitoring kamera lebih responsif.',
+    ],
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'location_name', 'label' => 'Location Name', 'required' => true],
