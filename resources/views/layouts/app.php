@@ -630,7 +630,7 @@
         </div>
         
         <div class="content">
-            <?php echo $content; ?>
+            <?php echo $content ?? '<div class="alert alert-warning">Tidak ada konten yang dimuat.</div>'; ?>
         </div>
     </div>
     

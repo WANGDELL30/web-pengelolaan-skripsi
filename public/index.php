@@ -144,4 +144,8 @@ switch ($page) {
         break;
 }
 
+if (!isset($content)) {
+    $content = '<div class="alert alert-danger">Error: Content could not be loaded. Please check the system logs.</div>';
+}
+
 include __DIR__ . '/../resources/views/layouts/app.php';
