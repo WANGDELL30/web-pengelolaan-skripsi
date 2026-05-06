@@ -77,7 +77,7 @@ CREATE TABLE range_tests (
     id INT AUTO_INCREMENT PRIMARY KEY,
     test_date DATE NOT NULL,
     location_name VARCHAR(100),
-    environment_type ENUM('lapangan', 'hangar', 'pantai', 'gunung'),
+    environment_type ENUM('lapangan', 'hangar', 'pantai', 'gunung', 'indoor', 'outdoor'),
     test_point_code VARCHAR(50),
     direction ENUM('north', 'south', 'east', 'west', 'vertical', 'diagonal'),
     coordinate_x_meter DECIMAL(10,2),
@@ -262,6 +262,44 @@ CREATE TABLE command_execution_tests (
     total_command_time DECIMAL(10,2),
     command_success_rate DECIMAL(5,2),
     notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Text Message Communication Logs table
+CREATE TABLE text_message_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    source_node VARCHAR(50),
+    target_node_id VARCHAR(50),
+    target_ip VARCHAR(45) NOT NULL,
+    target_port INT DEFAULT 80,
+    protocol ENUM('HTTP') DEFAULT 'HTTP',
+    endpoint VARCHAR(120) DEFAULT '/api/message',
+    message_text TEXT NOT NULL,
+    request_payload TEXT,
+    response_status_code INT,
+    response_body TEXT,
+    latency_ms DECIMAL(10,2),
+    delivery_status ENUM('success', 'fail') DEFAULT 'fail',
+    error_message TEXT,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Slave to Master Text Message Inbox Logs table
+CREATE TABLE text_message_inbox_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    source_node VARCHAR(50),
+    target_node_id VARCHAR(50),
+    source_ip VARCHAR(45),
+    message_text TEXT NOT NULL,
+    raw_payload TEXT,
+    rssi_dbm INT NULL,
+    slave_uptime_ms BIGINT NULL,
+    delivery_status ENUM('success', 'fail') DEFAULT 'success',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

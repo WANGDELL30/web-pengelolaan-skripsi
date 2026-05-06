@@ -108,6 +108,12 @@ switch ($page) {
         $title = 'Command Execution';
         $content = renderView(__DIR__ . '/../resources/views/pages/command.php');
         break;
+
+    case 'text-communication':
+        $title = 'Text Communication';
+        $subtitle = 'Master to slave message delivery';
+        $content = renderView(__DIR__ . '/../resources/views/pages/text_communication.php');
+        break;
     
     case 'response':
         $title = 'Response Time';
