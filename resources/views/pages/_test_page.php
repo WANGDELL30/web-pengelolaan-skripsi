@@ -16,6 +16,10 @@ if (!function_exists('testPageInputValue')) {
             return $field['default'] ?? null;
         }
 
+        if ($type === 'number' && !empty($field['preserve_precision'])) {
+            return sanitize($source[$name]);
+        }
+
         if ($type === 'number') {
             return isset($field['integer']) && $field['integer'] ? (int) $source[$name] : (float) $source[$name];
         }

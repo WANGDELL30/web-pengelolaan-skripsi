@@ -68,7 +68,10 @@ switch ($page) {
         $content = renderView(__DIR__ . '/../resources/views/pages/range.php');
         break;
     
-
+    case 'penetration':
+        $title = 'Signal Penetration Tests';
+        $content = renderView(__DIR__ . '/../resources/views/pages/penetration.php');
+        break;
     
     case 'latency':
         $title = 'Latency Tests';
@@ -95,15 +98,11 @@ switch ($page) {
         $content = renderView(__DIR__ . '/../resources/views/pages/power.php');
         break;
     
-
-
     case 'master-config':
         $title = 'Master Web Configuration';
         $subtitle = 'WiFi HaLow Master device panel';
         $content = renderView(__DIR__ . '/../resources/views/pages/master_config.php');
         break;
-    
-
     
     case 'command':
         $title = 'Command Execution';
@@ -142,10 +141,6 @@ switch ($page) {
         $chartData = $dashboardController->getChartData();
         $content = renderView(__DIR__ . '/../resources/views/pages/dashboard.php', compact('stats', 'recentTests', 'chartData'));
         break;
-}
-
-if (!isset($content)) {
-    $content = '<div class="alert alert-danger">Error: Content could not be loaded. Please check the system logs.</div>';
 }
 
 include __DIR__ . '/../resources/views/layouts/app.php';

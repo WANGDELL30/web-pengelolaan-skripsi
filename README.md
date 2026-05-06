@@ -7,7 +7,7 @@ Sistem pengelolaan data pengujian skripsi Bab 4 berbasis web untuk sistem komuni
 
 ## Fitur Utama
 1. **Dashboard Utama** - Menampilkan statistik dan grafik analisis
-2. **Modul Pengujian** - 17 jenis pengujian berbeda
+2. **Modul Pengujian** - 13 jenis pengujian berbeda
 3. **Analisis Otomatis** - Perhitungan rumus otomatis
 4. **Generate Laporan** - Export PDF, CSV, dan Print
 5. **Manajemen Data** - CRUD untuk semua jenis pengujian
@@ -27,23 +27,15 @@ Sistem pengelolaan data pengujian skripsi Bab 4 berbasis web untuk sistem komuni
    - Slave Camera Test
    - Power Consumption Test
 
-4. Network Topology Testing
-   - Star Topology Test
-   - Mesh Topology Analysis
-
-5. Evaluation System Monitoring
-   - Data Monitoring
-   - Monitoring Delay
-
-6. Control System Testing
+4. Control System Testing
    - Command Execution
    - Response Time
 
-7. System Security Evaluation
+5. System Security Evaluation
    - Authentication
    - Encryption
 
-8. Analysis and Discussion
+6. Analysis and Discussion
    - Laporan otomatis
 
 ## Teknologi yang Digunakan
@@ -158,7 +150,7 @@ wifi-testing-system/
 4. Download laporan
 
 ## Database Schema
-Terdapat 19 tabel utama:
+Terdapat 16 tabel utama:
 - `users` - Manajemen pengguna
 - `connectivity_tests` - Data connectivity test
 - `range_tests` - Data range test
@@ -168,10 +160,6 @@ Terdapat 19 tabel utama:
 - `interference_tests` - Data interference test
 - `slave_camera_tests` - Data camera test
 - `power_consumption_tests` - Data power test
-- `star_topology_tests` - Data star topology
-- `mesh_topology_analysis` - Data mesh topology
-- `data_monitoring` - Data monitoring
-- `monitoring_delay_tests` - Data delay
 - `command_execution_tests` - Data command execution
 - `response_time_tests` - Data response time
 - `authentication_tests` - Data auth test
@@ -267,7 +255,7 @@ MIT License - Free for Educational Use
 
 ### v1.0.0 (2026-04-27)
 - Initial Release
-- 17 modul pengujian
+- 13 modul pengujian
 - Dashboard real-time
 - Export laporan
 - Analisis otomatis

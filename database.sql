@@ -28,8 +28,8 @@ CREATE TABLE test_locations (
     id INT AUTO_INCREMENT PRIMARY KEY,
     location_name VARCHAR(100) NOT NULL,
     location_type ENUM('lapangan', 'hangar', 'pantai', 'gunung', 'indoor', 'outdoor'),
-    latitude DECIMAL(10, 8),
-    longitude DECIMAL(11, 8),
+    latitude DECIMAL(17, 14),
+    longitude DECIMAL(18, 14),
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -86,8 +86,10 @@ CREATE TABLE range_tests (
     distance_actual_meter DECIMAL(10,2),
     distance_3d_meter DECIMAL(10,2),
     distance_km DECIMAL(10,4),
-    gps_latitude DECIMAL(10, 8),
-    gps_longitude DECIMAL(11, 8),
+    master_gps_latitude DECIMAL(17, 14),
+    master_gps_longitude DECIMAL(18, 14),
+    gps_latitude DECIMAL(17, 14),
+    gps_longitude DECIMAL(18, 14),
     frequency_mhz DECIMAL(6,2) DEFAULT 915,
     rssi_dbm DECIMAL(6,2),
     snr_db DECIMAL(6,2),
@@ -109,7 +111,6 @@ CREATE TABLE signal_penetration_tests (
     test_date DATE NOT NULL,
     location_name VARCHAR(100),
     obstacle_type ENUM('wall', 'building', 'trees', 'vehicle', 'hangar', 'hill', 'none'),
-    obstacle_thickness_meter DECIMAL(6,2),
     condition_type ENUM('LOS', 'NLOS'),
     distance_meter DECIMAL(10,2),
     rssi_before_dbm DECIMAL(6,2),
@@ -240,88 +241,6 @@ CREATE TABLE power_consumption_tests (
     battery_capacity_wh DECIMAL(10,4),
     estimated_runtime_hour DECIMAL(10,2),
     estimated_runtime_day DECIMAL(10,2),
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
--- Star Topology Tests table
-CREATE TABLE star_topology_tests (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    test_date DATE NOT NULL,
-    location_name VARCHAR(100),
-    master_id VARCHAR(50),
-    total_slave_nodes INT,
-    active_slave_nodes INT,
-    distance_average_meter DECIMAL(10,2),
-    average_latency_ms DECIMAL(10,2),
-    average_throughput_kbps DECIMAL(10,2),
-    packet_sent INT DEFAULT 0,
-    packet_received INT DEFAULT 0,
-    packet_loss_percent DECIMAL(5,2),
-    node_success_rate DECIMAL(5,2),
-    gateway_cpu_usage_percent DECIMAL(5,2),
-    gateway_temperature_c DECIMAL(5,2),
-    topology_status ENUM('stable', 'degraded', 'critical'),
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
--- Mesh Topology Analysis table
-CREATE TABLE mesh_topology_analysis (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    analysis_date DATE NOT NULL,
-    scenario_name VARCHAR(100),
-    total_nodes INT,
-    hop_count INT,
-    estimated_latency_per_hop_ms DECIMAL(10,2),
-    estimated_power_per_node_w DECIMAL(10,2),
-    estimated_throughput_kbps DECIMAL(10,2),
-    reliability_score_percent DECIMAL(5,2),
-    total_estimated_latency DECIMAL(10,2),
-    total_estimated_power DECIMAL(10,2),
-    efficiency_score DECIMAL(10,4),
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
--- Data Monitoring table
-CREATE TABLE data_monitoring (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    test_date DATE NOT NULL,
-    node_id VARCHAR(50),
-    timestamp_ms BIGINT,
-    battery_percent DECIMAL(5,2),
-    voltage_v DECIMAL(5,2),
-    current_a DECIMAL(5,2),
-    temperature_c DECIMAL(5,2),
-    rssi_dbm DECIMAL(6,2),
-    snr_db DECIMAL(6,2),
-    gps_latitude DECIMAL(10, 8),
-    gps_longitude DECIMAL(11, 8),
-    status_connection VARCHAR(20),
-    alert_status VARCHAR(20),
-    power_w DECIMAL(10,2),
-    status_category VARCHAR(20),
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
--- Monitoring Delay Tests table
-CREATE TABLE monitoring_delay_tests (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    test_date DATE NOT NULL,
-    event_name VARCHAR(100),
-    node_id VARCHAR(50),
-    timestamp_event_generated_ms BIGINT,
-    timestamp_displayed_dashboard_ms BIGINT,
-    network_mode VARCHAR(50),
-    monitoring_delay_ms DECIMAL(10,2),
-    average_monitoring_delay DECIMAL(10,2),
-    delay_status ENUM('fast', 'acceptable', 'slow'),
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

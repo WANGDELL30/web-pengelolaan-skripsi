@@ -30,13 +30,11 @@ $summaryCards = [
         'color' => 'warning',
     ],
     [
-        'label' => 'Device & Topology',
+        'label' => 'Device & Energy',
         'value' => analysisMetric("SELECT
             (SELECT COUNT(*) FROM slave_camera_tests) +
-            (SELECT COUNT(*) FROM power_consumption_tests) +
-            (SELECT COUNT(*) FROM star_topology_tests) +
-            (SELECT COUNT(*) FROM mesh_topology_analysis) AS value"),
-        'icon' => 'fas fa-sitemap',
+            (SELECT COUNT(*) FROM power_consumption_tests) AS value"),
+        'icon' => 'fas fa-microchip',
         'color' => 'success',
     ],
     [
@@ -55,7 +53,6 @@ $metrics = [
     ['Average Throughput', number_format((float) analysisMetric("SELECT AVG(throughput_kbps) AS value FROM throughput_tests"), 2) . ' kbps', 'Menunjukkan kapasitas transfer data aktual.'],
     ['Average RSSI', number_format((float) analysisMetric("SELECT AVG(rssi_dbm) AS value FROM connectivity_tests"), 2) . ' dBm', 'Nilai mendekati 0 berarti sinyal lebih kuat.'],
     ['Average Power', number_format((float) analysisMetric("SELECT AVG(power_w) AS value FROM power_consumption_tests"), 2) . ' W', 'Dipakai untuk evaluasi konsumsi daya perangkat.'],
-    ['Stable Star Topology', (int) analysisMetric("SELECT COUNT(*) AS value FROM star_topology_tests WHERE topology_status = 'stable'") . ' record', 'Jumlah pengujian topologi star dengan status stabil.'],
     ['Secure Encryption', (int) analysisMetric("SELECT COUNT(*) AS value FROM encryption_tests WHERE encryption_status = 'secure'") . ' record', 'Jumlah pengujian enkripsi yang lolos sniffing dan integrity check.'],
 ];
 

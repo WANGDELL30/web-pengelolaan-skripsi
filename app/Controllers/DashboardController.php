@@ -43,8 +43,6 @@ class DashboardController {
             SELECT location_name FROM interference_tests
             UNION
             SELECT location_name FROM slave_camera_tests
-            UNION
-            SELECT location_name FROM star_topology_tests
         ) as all_locations
         WHERE location_name IS NOT NULL AND location_name != ''");
         $stats['total_locations'] = $result['total'];
@@ -58,10 +56,6 @@ class DashboardController {
             SELECT node_id FROM throughput_tests
             UNION
             SELECT node_id FROM slave_camera_tests
-            UNION
-            SELECT node_id FROM data_monitoring
-            UNION
-            SELECT node_id FROM monitoring_delay_tests
             UNION
             SELECT target_node_id as node_id FROM command_execution_tests
             UNION

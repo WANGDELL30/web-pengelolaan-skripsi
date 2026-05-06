@@ -7,6 +7,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <?php if (($_GET['page'] ?? '') === 'range'): ?>
+        <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
+    <?php endif; ?>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
@@ -548,7 +551,9 @@
             <a href="index.php?page=range" class="nav-link <?php echo ($_GET['page'] ?? '') === 'range' ? 'active' : ''; ?>">
                 <i class="fas fa-ruler"></i> Range Test
             </a>
-
+            <a href="index.php?page=penetration" class="nav-link <?php echo ($_GET['page'] ?? '') === 'penetration' ? 'active' : ''; ?>">
+                <i class="fas fa-shield-alt"></i> Penetration Test
+            </a>
             <a href="index.php?page=latency" class="nav-link <?php echo ($_GET['page'] ?? '') === 'latency' ? 'active' : ''; ?>">
                 <i class="fas fa-clock"></i> Latency Test
             </a>
@@ -559,20 +564,18 @@
                 <i class="fas fa-wifi"></i> Interference Test
             </a>
             
-            <div class="sidebar-heading text-white-50 small mt-3 px-3">PERANGKAT & TOPOLOGI</div>
+            <div class="sidebar-heading text-white-50 small mt-3 px-3">PERANGKAT & KONFIGURASI</div>
             <a href="index.php?page=camera" class="nav-link <?php echo ($_GET['page'] ?? '') === 'camera' ? 'active' : ''; ?>">
                 <i class="fas fa-video"></i> Camera Test
             </a>
             <a href="index.php?page=power" class="nav-link <?php echo ($_GET['page'] ?? '') === 'power' ? 'active' : ''; ?>">
                 <i class="fas fa-battery-full"></i> Power Test
             </a>
-
             <a href="index.php?page=master-config" class="nav-link <?php echo ($_GET['page'] ?? '') === 'master-config' ? 'active' : ''; ?>">
                 <i class="fas fa-sliders"></i> Master Config
             </a>
             
-            <div class="sidebar-heading text-white-50 small mt-3 px-3">MONITORING & KONTROL</div>
-
+            <div class="sidebar-heading text-white-50 small mt-3 px-3">KONTROL KOMUNIKASI</div>
             <a href="index.php?page=command" class="nav-link <?php echo ($_GET['page'] ?? '') === 'command' ? 'active' : ''; ?>">
                 <i class="fas fa-terminal"></i> Command Execution
             </a>
@@ -630,11 +633,14 @@
         </div>
         
         <div class="content">
-            <?php echo $content ?? '<div class="alert alert-warning">Tidak ada konten yang dimuat.</div>'; ?>
+            <?php echo $content; ?>
         </div>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?php if (($_GET['page'] ?? '') === 'range'): ?>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <?php endif; ?>
     <script src="js/main.js?v=20260427-layout5"></script>
 </body>
 </html>

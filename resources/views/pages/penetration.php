@@ -9,7 +9,6 @@ $pageConfig = [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'location_name', 'label' => 'Location Name', 'required' => true],
         ['name' => 'obstacle_type', 'label' => 'Obstacle Type', 'type' => 'select', 'options' => ['wall', 'building', 'trees', 'vehicle', 'hangar', 'hill', 'none']],
-        ['name' => 'obstacle_thickness_meter', 'label' => 'Obstacle Thickness (m)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'condition_type', 'label' => 'Condition', 'type' => 'select', 'options' => ['LOS', 'NLOS']],
         ['name' => 'distance_meter', 'label' => 'Distance (m)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'rssi_before_dbm', 'label' => 'RSSI Before (dBm)', 'type' => 'number', 'step' => '0.01', 'required' => true],

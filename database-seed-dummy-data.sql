@@ -54,32 +54,33 @@ INSERT INTO connectivity_tests (test_date, location_name, environment_type, node
 -- Insert range test data
 INSERT INTO range_tests (test_date, location_name, environment_type, test_point_code,
     direction, coordinate_x_meter, coordinate_y_meter, coordinate_z_meter,
-    distance_actual_meter, distance_3d_meter, distance_km, gps_latitude, gps_longitude,
+    distance_actual_meter, distance_3d_meter, distance_km,
+    master_gps_latitude, master_gps_longitude, gps_latitude, gps_longitude,
     frequency_mhz, rssi_dbm, snr_db, bitrate_kbps, connection_status, fspl_db, signal_margin,
     receiver_sensitivity_dbm, status_result, photo_video_link, notes) VALUES
 ('2026-04-15', 'Lapangan Terbuka A', 'lapangan', 'POINT-01',
-    'north', 100, 0, 0, 100, 100,
-    0.1, -6.2088, 106.8456, 915, -45.2, 25.3, 54000,
+    'north', 0, 100, 0, 100, 100,
+    0.1, -6.2088, 106.8456, -6.2079017, 106.8456, 915, -45.2, 25.3, 54000,
     'connected', 71.46, 26.26, -90, 'good', null,
     'Sinyal sangat baik pada jarak 100m'),
 ('2026-04-15', 'Lapangan Terbuka A', 'lapangan', 'POINT-02',
-    'north', 250, 0, 0, 250, 250,
-    0.25, -6.2088, 106.8456, 915, -55.8, 18.2, 48000,
+    'north', 0, 250, 0, 250, 250,
+    0.25, -6.2088, 106.8456, -6.2065542, 106.8456, 915, -55.8, 18.2, 48000,
     'connected', 81.49, 32.69, -90, 'good', null,
     'Sinyal baik pada jarak 250m'),
 ('2026-04-15', 'Lapangan Terbuka A', 'lapangan', 'POINT-03',
     'east', 500, 0, 0, 500, 500,
-    0.5, -6.2088, 106.8456, 915, -68.9, 12.1, 36000,
+    0.5, -6.2088, 106.8456, -6.2088, 106.850115, 915, -68.9, 12.1, 36000,
     'connected', 88.52, 21.39, -90, 'moderate', null,
     'Sinyal moderat pada jarak 500m'),
 ('2026-04-15', 'Lapangan Terbuka A', 'lapangan', 'POINT-04',
     'east', 750, 0, 0, 750, 750,
-    0.75, -6.2088, 106.8456, 915, -75.2, 8.5, 24000,
+    0.75, -6.2088, 106.8456, -6.2088, 106.852373, 915, -75.2, 8.5, 24000,
     'connected', 92.23, 16.77, -90, 'moderate', null,
     'Sinyal mulai melemah pada jarak 750m'),
 ('2026-04-15', 'Lapangan Terbuka A', 'lapangan', 'POINT-05',
-    'south', 1000, 0, 0, 1000, 1000,
-    1.0, -6.2088, 106.8456, 915, -82.1, 5.2, 12000,
+    'south', 0, -1000, 0, 1000, 1000,
+    1.0, -6.2088, 106.8456, -6.2177832, 106.8456, 915, -82.1, 5.2, 12000,
     'disconnected', 96.16, 11.84, -90, 'poor', null,
     'Sinyal lemah, mendekati batas maksimal');
 
@@ -147,93 +148,6 @@ INSERT INTO power_consumption_tests (test_date, device_id, device_type,
 ('2026-04-18', 'NODE-SLAVE-04', 'slave', 7.4, 0.8, 24, 10000,
     20, 30, 42, -48.3, 22.1, 5.92, 142.08, 74,
     24.00, 1.00, 'Low power mode for 24h patrol');
-
--- Insert star topology test data
-INSERT INTO star_topology_tests (test_date, location_name, master_id,
-    total_slave_nodes, active_slave_nodes, distance_average_meter,
-    average_latency_ms, average_throughput_kbps, packet_sent,
-    packet_received, packet_loss_percent, node_success_rate,
-    gateway_cpu_usage_percent, gateway_temperature_c, topology_status,
-    notes) VALUES
-('2026-04-19', 'Lapangan Terbuka A', 'NODE-MASTER-01',
-    4, 4, 250, 85.2, 42000, 4000, 3980, 0.5,
-    100, 65, 58, 'stable',
-    'All 4 slave nodes connected successfully'),
-('2026-04-19', 'Lapangan Terbuka A', 'NODE-MASTER-01',
-    4, 3, 500, 125.5, 36000, 3000, 2940, 2.0,
-    75, 70, 62, 'degraded',
-    'One slave node disconnected'),
-('2026-04-19', 'Lapangan Terbuka A', 'NODE-MASTER-01',
-    4, 2, 750, 185.3, 28000, 2000, 1900, 5.0,
-    50, 75, 68, 'critical',
-    'Multiple nodes disconnected, topology degraded'),
-('2026-04-19', 'Lapangan Terbuka A', 'NODE-MASTER-01',
-    4, 4, 300, 95.8, 45000, 5000, 4985, 0.3,
-    100, 55, 48, 'stable',
-    'Stable operation with 4 nodes'),
-('2026-04-19', 'Lapangan Terbuka A', 'NODE-MASTER-01',
-    4, 1, 1000, 250.0, 12000, 1000, 500, 50.0,
-    25, 80, 72, 'critical',
-    'Critical state - only 1 node available');
-
--- Insert mesh topology analysis data
-INSERT INTO mesh_topology_analysis (analysis_date, scenario_name,
-    total_nodes, hop_count, estimated_latency_per_hop_ms,
-    estimated_power_per_node_w, estimated_throughput_kbps,
-    reliability_score_percent, total_estimated_latency,
-    total_estimated_power, efficiency_score, notes) VALUES
-('2026-04-20', 'Small Mesh Network', 5, 2, 15.5, 8.5, 45000,
-    95, 31.0, 42.5, 2235.29, 'Small tactical mesh network'),
-('2026-04-20', 'Medium Mesh Network', 10, 3, 18.2, 8.5, 38000,
-    90, 54.6, 85.0, 1058.82, 'Medium tactical mesh network'),
-('2026-04-20', 'Large Mesh Network', 15, 4, 20.1, 8.5, 32000,
-    85, 80.4, 127.5, 666.67, 'Large tactical mesh network'),
-('2026-04-20', 'Dense Mesh Network', 20, 5, 22.3, 8.5, 28000,
-    80, 111.5, 170.0, 470.59, 'Dense tactical mesh network'),
-('2026-04-20', 'VSAT Hybrid Mesh', 8, 3, 25.8, 12.5, 15000,
-    75, 77.4, 100.0, 112.50, 'Hybrid mesh with VSAT integration');
-
--- Insert data monitoring data
-INSERT INTO data_monitoring (test_date, node_id, timestamp_ms,
-    battery_percent, voltage_v, current_a, temperature_c,
-    rssi_dbm, snr_db, gps_latitude, gps_longitude,
-    status_connection, alert_status, power_w, status_category, notes) VALUES
-('2026-04-21', 'NODE-SLAVE-01', 1000000, 85, 7.2, 1.1,
-    45, -48.3, 22.1, -6.2088, 106.8456,
-    'connected', 'normal', 7.92, 'normal', 'Normal operation'),
-('2026-04-21', 'NODE-SLAVE-01', 1060000, 84, 7.1, 1.2,
-    46, -49.1, 21.8, -6.2089, 106.8457,
-    'connected', 'normal', 8.52, 'normal', 'Normal operation'),
-('2026-04-21', 'NODE-SLAVE-01', 1120000, 83, 7.0, 1.3,
-    47, -50.2, 20.5, -6.2090, 106.8458,
-    'connected', 'warning', 9.10, 'warning', 'Battery decreasing'),
-('2026-04-21', 'NODE-SLAVE-02', 1000000, 92, 7.3, 0.9,
-    42, -45.2, 25.3, -6.2091, 106.8459,
-    'connected', 'normal', 6.57, 'normal', 'Excellent condition'),
-('2026-04-21', 'NODE-SLAVE-02', 1060000, 91, 7.2, 1.0,
-    43, -46.1, 24.8, -6.2092, 106.8460,
-    'connected', 'normal', 7.20, 'normal', 'Excellent condition');
-
--- Insert monitoring delay test data
-INSERT INTO monitoring_delay_tests (test_date, event_name, node_id,
-    timestamp_event_generated_ms, timestamp_displayed_dashboard_ms,
-    network_mode, monitoring_delay_ms, average_monitoring_delay,
-    delay_status, notes) VALUES
-('2026-04-22', 'Motion Detected', 'NODE-SLAVE-01',
-    1000000, 1000450, 'HaLow only', 450, 450,
-    'fast', 'Fast real-time monitoring'),
-('2026-04-22', 'Signal Loss', 'NODE-SLAVE-02',
-    2000000, 2002340, 'HaLow only', 2340, 1395,
-    'acceptable', 'Acceptable delay'),
-('2026-04-22', 'Temperature Alert', 'NODE-SLAVE-03',
-    3000000, 3008900, 'HaLow + VSAT', 8900, 4880,
-    'slow', 'High delay with VSAT'),
-('2026-04-22', 'Battery Low', 'NODE-SLAVE-01',
-    4000000, 4001200, 'HaLow only', 1200, 3700,
-    'acceptable', 'Normal delay'),
-('2026-04-22', 'Connection Restored', 'NODE-SLAVE-02',
-    5000000, 5003400, 'HaLow + VSAT', 3400, 3980,
-    'acceptable', 'VSAT delay acceptable');
 
 -- Insert command execution test data
 INSERT INTO command_execution_tests (test_date, command_type,
@@ -343,5 +257,5 @@ SELECT '=== RANGE TESTS ===' as '';
 SELECT COUNT(*) as total_records FROM range_tests;
 
 SELECT '=== DUMMY DATA LOADED SUCCESSFULLY ===' as '';
-SELECT 'Total tables populated: 11' as status;
-SELECT 'Records inserted: 65+' as count;
+SELECT 'Total tables populated: 13' as status;
+SELECT 'Records inserted: 60+' as count;

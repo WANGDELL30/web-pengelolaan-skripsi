@@ -111,15 +111,6 @@ function determineCameraQuality($score) {
 }
 
 /**
- * Determine topology status
- */
-function determineTopologyStatus($packetLoss) {
-    if ($packetLoss < 5) return 'stable';
-    if ($packetLoss <= 20) return 'degraded';
-    return 'critical';
-}
-
-/**
  * Determine system status
  */
 function determineSystemStatus($metrics) {
