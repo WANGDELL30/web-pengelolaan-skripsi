@@ -1,0 +1,416 @@
+-- WiFi HaLow Testing System - Database Schema
+-- Design and Implementation of a Wi-Fi HaLow-Based Tactical Monitoring and Communication Support System
+
+-- Create database
+CREATE DATABASE IF NOT EXISTS wifi_holow_testing;
+USE wifi_holow_testing;
+
+-- Users table
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'operator', 'viewer') DEFAULT 'operator',
+    full_name VARCHAR(100),
+    email VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    notes TEXT
+);
+
+-- Default admin account: admin / admin123
+INSERT INTO users (username, password, role, full_name, email, notes) VALUES
+('admin', '$2y$10$nTEDKXvfEWtCbiXSFHmBNOc6kqfr0fibJTTF47Kwtli4RYexCgDTW', 'admin', 'System Admin', 'admin@wifiholow.test', 'Administrator utama')
+ON DUPLICATE KEY UPDATE username = VALUES(username);
+
+-- Test locations table
+CREATE TABLE test_locations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    location_name VARCHAR(100) NOT NULL,
+    location_type ENUM('lapangan', 'hangar', 'pantai', 'gunung', 'indoor', 'outdoor'),
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    notes TEXT
+);
+
+-- Devices table
+CREATE TABLE devices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    device_id VARCHAR(50) NOT NULL UNIQUE,
+    device_type ENUM('master', 'slave') NOT NULL,
+    device_name VARCHAR(100),
+    firmware_version VARCHAR(20),
+    hardware_version VARCHAR(20),
+    status ENUM('active', 'inactive', 'maintenance') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    notes TEXT
+);
+
+-- Connectivity Tests table
+CREATE TABLE connectivity_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    location_name VARCHAR(100),
+    environment_type ENUM('lapangan', 'hangar', 'pantai', 'gunung', 'indoor', 'outdoor'),
+    node_id VARCHAR(50),
+    node_type ENUM('master', 'slave'),
+    connection_status ENUM('connected', 'disconnected', 'intermittent'),
+    rssi_dbm DECIMAL(6,2),
+    snr_db DECIMAL(6,2),
+    packet_sent INT DEFAULT 0,
+    packet_received INT DEFAULT 0,
+    packet_lost INT DEFAULT 0,
+    packet_loss_percent DECIMAL(5,2) DEFAULT 0,
+    packet_success_rate DECIMAL(5,2) DEFAULT 0,
+    test_duration_second INT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Range Tests table
+CREATE TABLE range_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    location_name VARCHAR(100),
+    environment_type ENUM('lapangan', 'hangar', 'pantai', 'gunung'),
+    test_point_code VARCHAR(50),
+    direction ENUM('north', 'south', 'east', 'west', 'vertical', 'diagonal'),
+    coordinate_x_meter DECIMAL(10,2),
+    coordinate_y_meter DECIMAL(10,2),
+    coordinate_z_meter DECIMAL(10,2),
+    distance_actual_meter DECIMAL(10,2),
+    distance_3d_meter DECIMAL(10,2),
+    distance_km DECIMAL(10,4),
+    gps_latitude DECIMAL(10, 8),
+    gps_longitude DECIMAL(11, 8),
+    frequency_mhz DECIMAL(6,2) DEFAULT 915,
+    rssi_dbm DECIMAL(6,2),
+    snr_db DECIMAL(6,2),
+    bitrate_kbps DECIMAL(10,2),
+    connection_status VARCHAR(20),
+    fspl_db DECIMAL(6,2),
+    signal_margin DECIMAL(6,2),
+    receiver_sensitivity_dbm DECIMAL(6,2) DEFAULT -90,
+    status_result ENUM('good', 'moderate', 'poor'),
+    photo_video_link VARCHAR(255),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Signal Penetration Tests table
+CREATE TABLE signal_penetration_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    location_name VARCHAR(100),
+    obstacle_type ENUM('wall', 'building', 'trees', 'vehicle', 'hangar', 'hill', 'none'),
+    obstacle_thickness_meter DECIMAL(6,2),
+    condition_type ENUM('LOS', 'NLOS'),
+    distance_meter DECIMAL(10,2),
+    rssi_before_dbm DECIMAL(6,2),
+    rssi_after_dbm DECIMAL(6,2),
+    snr_before_db DECIMAL(6,2),
+    snr_after_db DECIMAL(6,2),
+    packet_sent INT DEFAULT 0,
+    packet_received INT DEFAULT 0,
+    bitrate_kbps DECIMAL(10,2),
+    rssi_loss DECIMAL(6,2),
+    snr_loss DECIMAL(6,2),
+    packet_loss_percent DECIMAL(5,2),
+    penetration_loss_db DECIMAL(6,2),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Latency Tests table
+CREATE TABLE latency_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    location_name VARCHAR(100),
+    environment_type ENUM('lapangan', 'hangar', 'pantai', 'gunung', 'indoor', 'outdoor'),
+    node_id VARCHAR(50),
+    distance_meter DECIMAL(10,2),
+    trial_number INT,
+    timestamp_send_ms BIGINT,
+    timestamp_receive_ms BIGINT,
+    packet_sent INT DEFAULT 0,
+    packet_received INT DEFAULT 0,
+    network_mode ENUM('HaLow only', 'HaLow + VSAT'),
+    latency_ms DECIMAL(10,2),
+    jitter_ms DECIMAL(10,2),
+    packet_loss_percent DECIMAL(5,2),
+    average_latency DECIMAL(10,2),
+    minimum_latency DECIMAL(10,2),
+    maximum_latency DECIMAL(10,2),
+    average_jitter DECIMAL(10,2),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Throughput Tests table
+CREATE TABLE throughput_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    location_name VARCHAR(100),
+    environment_type ENUM('lapangan', 'hangar', 'pantai', 'gunung', 'indoor', 'outdoor'),
+    node_id VARCHAR(50),
+    distance_meter DECIMAL(10,2),
+    data_sent_kb DECIMAL(10,2),
+    data_received_kb DECIMAL(10,2),
+    transmission_time_second DECIMAL(10,2),
+    rssi_dbm DECIMAL(6,2),
+    snr_db DECIMAL(6,2),
+    bitrate_kbps DECIMAL(10,2),
+    throughput_kbps DECIMAL(10,2),
+    packet_delivery_ratio_percent DECIMAL(5,2),
+    data_loss_percent DECIMAL(5,2),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Interference Resistance Tests table
+CREATE TABLE interference_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    location_name VARCHAR(100),
+    interference_level ENUM('normal', 'low', 'medium', 'high'),
+    interference_source VARCHAR(100),
+    distance_meter DECIMAL(10,2),
+    rssi_dbm DECIMAL(6,2),
+    snr_db DECIMAL(6,2),
+    throughput_kbps DECIMAL(10,2),
+    latency_ms DECIMAL(10,2),
+    packet_sent INT DEFAULT 0,
+    packet_received INT DEFAULT 0,
+    packet_loss_percent DECIMAL(5,2),
+    throughput_degradation_percent DECIMAL(5,2),
+    latency_increase_percent DECIMAL(5,2),
+    snr_degradation_db DECIMAL(6,2),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Slave Camera Tests table
+CREATE TABLE slave_camera_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    location_name VARCHAR(100),
+    node_id VARCHAR(50),
+    distance_meter DECIMAL(10,2),
+    resolution VARCHAR(50),
+    fps INT,
+    image_quality_score INT,
+    camera_delay_ms DECIMAL(10,2),
+    packet_loss_percent DECIMAL(5,2),
+    status ENUM('success', 'fail'),
+    average_camera_delay DECIMAL(10,2),
+    average_fps DECIMAL(5,2),
+    camera_quality_category VARCHAR(20),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Power Consumption Tests table
+CREATE TABLE power_consumption_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    device_id VARCHAR(50),
+    device_type ENUM('master', 'slave'),
+    battery_voltage_v DECIMAL(5,2),
+    current_a DECIMAL(5,2),
+    test_duration_hour DECIMAL(5,2),
+    battery_capacity_mah INT,
+    cpu_usage_percent DECIMAL(5,2),
+    ram_usage_percent DECIMAL(5,2),
+    cpu_temperature_c DECIMAL(5,2),
+    rssi_dbm DECIMAL(6,2),
+    snr_db DECIMAL(6,2),
+    power_w DECIMAL(10,2),
+    energy_wh DECIMAL(10,4),
+    battery_capacity_wh DECIMAL(10,4),
+    estimated_runtime_hour DECIMAL(10,2),
+    estimated_runtime_day DECIMAL(10,2),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Star Topology Tests table
+CREATE TABLE star_topology_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    location_name VARCHAR(100),
+    master_id VARCHAR(50),
+    total_slave_nodes INT,
+    active_slave_nodes INT,
+    distance_average_meter DECIMAL(10,2),
+    average_latency_ms DECIMAL(10,2),
+    average_throughput_kbps DECIMAL(10,2),
+    packet_sent INT DEFAULT 0,
+    packet_received INT DEFAULT 0,
+    packet_loss_percent DECIMAL(5,2),
+    node_success_rate DECIMAL(5,2),
+    gateway_cpu_usage_percent DECIMAL(5,2),
+    gateway_temperature_c DECIMAL(5,2),
+    topology_status ENUM('stable', 'degraded', 'critical'),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Mesh Topology Analysis table
+CREATE TABLE mesh_topology_analysis (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    analysis_date DATE NOT NULL,
+    scenario_name VARCHAR(100),
+    total_nodes INT,
+    hop_count INT,
+    estimated_latency_per_hop_ms DECIMAL(10,2),
+    estimated_power_per_node_w DECIMAL(10,2),
+    estimated_throughput_kbps DECIMAL(10,2),
+    reliability_score_percent DECIMAL(5,2),
+    total_estimated_latency DECIMAL(10,2),
+    total_estimated_power DECIMAL(10,2),
+    efficiency_score DECIMAL(10,4),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Data Monitoring table
+CREATE TABLE data_monitoring (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    node_id VARCHAR(50),
+    timestamp_ms BIGINT,
+    battery_percent DECIMAL(5,2),
+    voltage_v DECIMAL(5,2),
+    current_a DECIMAL(5,2),
+    temperature_c DECIMAL(5,2),
+    rssi_dbm DECIMAL(6,2),
+    snr_db DECIMAL(6,2),
+    gps_latitude DECIMAL(10, 8),
+    gps_longitude DECIMAL(11, 8),
+    status_connection VARCHAR(20),
+    alert_status VARCHAR(20),
+    power_w DECIMAL(10,2),
+    status_category VARCHAR(20),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Monitoring Delay Tests table
+CREATE TABLE monitoring_delay_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    event_name VARCHAR(100),
+    node_id VARCHAR(50),
+    timestamp_event_generated_ms BIGINT,
+    timestamp_displayed_dashboard_ms BIGINT,
+    network_mode VARCHAR(50),
+    monitoring_delay_ms DECIMAL(10,2),
+    average_monitoring_delay DECIMAL(10,2),
+    delay_status ENUM('fast', 'acceptable', 'slow'),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Command Execution Tests table
+CREATE TABLE command_execution_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    command_type ENUM('reset', 'shutdown', 'restart', 'turn_on', 'turn_off', 'configuration_update'),
+    source VARCHAR(50),
+    target_node_id VARCHAR(50),
+    command_sent_time_ms BIGINT,
+    command_received_time_ms BIGINT,
+    command_executed_time_ms BIGINT,
+    execution_status ENUM('success', 'fail'),
+    command_delivery_delay DECIMAL(10,2),
+    command_execution_delay DECIMAL(10,2),
+    total_command_time DECIMAL(10,2),
+    command_success_rate DECIMAL(5,2),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Response Time Tests table
+CREATE TABLE response_time_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    command_type VARCHAR(50),
+    target_node_id VARCHAR(50),
+    request_time_ms BIGINT,
+    response_time_ms BIGINT,
+    network_mode VARCHAR(50),
+    status VARCHAR(20),
+    response_time_total_ms DECIMAL(10,2),
+    average_response_time DECIMAL(10,2),
+    minimum_response_time DECIMAL(10,2),
+    maximum_response_time DECIMAL(10,2),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Authentication Tests table
+CREATE TABLE authentication_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    user_role VARCHAR(50),
+    login_attempt_type ENUM('valid_user', 'invalid_user', 'wrong_password', 'unauthorized_access'),
+    authentication_method VARCHAR(50),
+    attempt_count INT DEFAULT 0,
+    success_count INT DEFAULT 0,
+    failed_count INT DEFAULT 0,
+    authentication_success_rate DECIMAL(5,2),
+    authentication_failure_rate DECIMAL(5,2),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Encryption Tests table
+CREATE TABLE encryption_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    protocol_used VARCHAR(50),
+    encryption_type VARCHAR(50),
+    key_length_bit INT,
+    sniffing_test_result ENUM('readable', 'unreadable'),
+    data_integrity_status ENUM('valid', 'invalid'),
+    encryption_status VARCHAR(20),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Generated Reports table
+CREATE TABLE generated_reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    report_title VARCHAR(255) NOT NULL,
+    report_type VARCHAR(50),
+    date_range_start DATE,
+    date_range_end DATE,
+    location_filter VARCHAR(100),
+    test_type_filter VARCHAR(100),
+    content TEXT,
+    file_path VARCHAR(255),
+    file_type ENUM('pdf', 'csv', 'html'),
+    generated_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (generated_by) REFERENCES users(id)
+);
