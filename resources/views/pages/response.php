@@ -24,7 +24,7 @@ $pageConfig = [
         ['name' => 'target_node_id', 'label' => 'Target Node ID', 'required' => true],
         ['name' => 'request_time_ms', 'label' => 'Request Time (ms)', 'type' => 'number', 'integer' => true],
         ['name' => 'response_time_ms', 'label' => 'Response Time (ms)', 'type' => 'number', 'integer' => true],
-        ['name' => 'network_mode', 'label' => 'Network Mode', 'type' => 'select', 'options' => ['HaLow only', 'HaLow + VSAT']],
+        ['name' => 'network_mode', 'label' => 'Network Mode', 'type' => 'select', 'options' => ['HaLow only', 'HaLow + VSAT', 'HaLow + Starlink']],
         ['name' => 'status', 'label' => 'Status', 'type' => 'select', 'options' => ['success', 'fail', 'timeout']],
         ['name' => 'notes', 'label' => 'Notes', 'type' => 'textarea'],
     ],

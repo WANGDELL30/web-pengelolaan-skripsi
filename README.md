@@ -32,7 +32,6 @@ Sistem pengelolaan data pengujian skripsi Bab 4 berbasis web untuk sistem komuni
    - Response Time
 
 5. System Security Evaluation
-   - Authentication
    - Encryption
 
 6. Analysis and Discussion
@@ -150,7 +149,7 @@ wifi-testing-system/
 4. Download laporan
 
 ## Database Schema
-Terdapat 16 tabel utama:
+Terdapat 15 tabel utama yang aktif dipakai aplikasi:
 - `users` - Manajemen pengguna
 - `connectivity_tests` - Data connectivity test
 - `range_tests` - Data range test
@@ -162,7 +161,6 @@ Terdapat 16 tabel utama:
 - `power_consumption_tests` - Data power test
 - `command_execution_tests` - Data command execution
 - `response_time_tests` - Data response time
-- `authentication_tests` - Data auth test
 - `encryption_tests` - Data encryption test
 - `test_locations` - Data lokasi pengujian
 - `devices` - Data perangkat

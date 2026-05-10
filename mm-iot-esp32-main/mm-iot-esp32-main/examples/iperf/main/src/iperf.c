@@ -193,9 +193,8 @@ enum iperf_type
 #endif
 
 #ifndef ATAK_GPS_ENABLE
-/** Enables GPS/NMEA position updates over UART with fixed-position fallback.
- *  Default is disabled because the current slave hardware does not expose a GNSS data path to ESP. */
-#define ATAK_GPS_ENABLE                 0
+/** Enables NEO-7M/NEO-M8N GPS/NMEA position updates over UART with fixed-position fallback. */
+#define ATAK_GPS_ENABLE                 1
 #endif
 
 #ifndef ATAK_GPS_UART_NUM
@@ -209,12 +208,12 @@ enum iperf_type
 #endif
 
 #ifndef ATAK_GPS_UART_TX_PIN
-/** GPS TX from ESP is usually unused for read-only NMEA reception. */
-#define ATAK_GPS_UART_TX_PIN            UART_PIN_NO_CHANGE
+/** Optional ESP TX to GPS RX. Leave GPS RX disconnected if you only need NMEA receive. */
+#define ATAK_GPS_UART_TX_PIN            GPIO_NUM_6
 #endif
 
 #ifndef ATAK_GPS_UART_RX_PIN
-/** Connect GPS module TX to this ESP32 pin if you want live coordinates. */
+/** Connect GPS module TX to Seeed XIAO D7 / ESP32-S3 GPIO44. */
 #define ATAK_GPS_UART_RX_PIN            GPIO_NUM_44
 #endif
 
@@ -239,8 +238,8 @@ enum iperf_type
 #endif
 
 #ifndef BMP180_ENABLE
-/** Enables BMP180 temperature and pressure reads over I2C. */
-#define BMP180_ENABLE                   1
+/** Legacy BMP180 I2C sensor support. Disabled because GPS replaces this sensor input. */
+#define BMP180_ENABLE                   0
 #endif
 
 #ifndef BMP180_I2C_PORT
@@ -316,7 +315,7 @@ enum iperf_type
 
 #ifndef STATUS_WEB_FIRMWARE_VERSION
 /** Visible firmware marker used to verify the flashed binary from the browser. */
-#define STATUS_WEB_FIRMWARE_VERSION     "text-msg-v8-20260507"
+#define STATUS_WEB_FIRMWARE_VERSION     "gps-neo-m8n-v1-20260508"
 #endif
 
 #ifndef TEXT_MESSAGE_ENABLE
@@ -358,6 +357,9 @@ enum iperf_type
 
 /** Array of power of 10 unit specifiers. */
 static const char units[] = {' ', 'K', 'M', 'G', 'T'};
+
+static uint32_t iperf_command_sent_time_ms;
+static uint32_t iperf_command_received_time_ms;
 
 #if STATUS_WEB_ENABLE
 static httpd_handle_t status_web_server = NULL;
@@ -998,11 +1000,15 @@ static struct
     struct mmosal_task *task;
     bool valid;
     bool first_fix_reported;
+    bool nmea_seen;
     char lat[20];
     char lon[20];
     char hae[16];
     uint8_t satellites;
     uint32_t last_update_ms;
+    uint32_t last_sentence_ms;
+    uint32_t sentence_count;
+    esp_err_t last_error;
 } atak_gps_state = {0};
 #endif
 
@@ -1119,6 +1125,33 @@ static unsigned atak_nmea_split_fields(char *sentence, char **fields, unsigned m
     return count;
 }
 
+static void atak_gps_set_error(esp_err_t err)
+{
+    if (atak_gps_state.lock == NULL)
+    {
+        return;
+    }
+
+    MMOSAL_MUTEX_GET_INF(atak_gps_state.lock);
+    atak_gps_state.last_error = err;
+    MMOSAL_MUTEX_RELEASE(atak_gps_state.lock);
+}
+
+static void atak_gps_note_sentence(void)
+{
+    if (atak_gps_state.lock == NULL)
+    {
+        return;
+    }
+
+    MMOSAL_MUTEX_GET_INF(atak_gps_state.lock);
+    atak_gps_state.nmea_seen = true;
+    atak_gps_state.last_sentence_ms = mmosal_get_time_ms();
+    atak_gps_state.sentence_count++;
+    atak_gps_state.last_error = ESP_OK;
+    MMOSAL_MUTEX_RELEASE(atak_gps_state.lock);
+}
+
 static void atak_gps_publish_fix(const char *lat, const char *lon, const char *hae,
                                  uint8_t satellites)
 {
@@ -1134,6 +1167,7 @@ static void atak_gps_publish_fix(const char *lat, const char *lon, const char *h
     atak_gps_state.satellites = satellites;
     atak_gps_state.valid = true;
     atak_gps_state.last_update_ms = mmosal_get_time_ms();
+    atak_gps_state.last_error = ESP_OK;
     MMOSAL_MUTEX_RELEASE(atak_gps_state.lock);
 
     if (!atak_gps_state.first_fix_reported)
@@ -1179,6 +1213,7 @@ static void atak_gps_process_rmc(char *sentence)
     char lat[20] = {0};
     char lon[20] = {0};
     char hae[16] = ATAK_COT_HAE;
+    uint8_t satellites = 0;
     unsigned field_count = atak_nmea_split_fields(sentence, fields, 16);
 
     if (field_count < 7)
@@ -1204,10 +1239,11 @@ static void atak_gps_process_rmc(char *sentence)
         {
             (void)mmosal_safer_strcpy(hae, atak_gps_state.hae, sizeof(hae));
         }
+        satellites = atak_gps_state.satellites;
         MMOSAL_MUTEX_RELEASE(atak_gps_state.lock);
     }
 
-    atak_gps_publish_fix(lat, lon, hae, atak_gps_state.satellites);
+    atak_gps_publish_fix(lat, lon, hae, satellites);
 }
 
 static void atak_gps_process_sentence(char *sentence)
@@ -1216,6 +1252,8 @@ static void atak_gps_process_sentence(char *sentence)
     {
         return;
     }
+
+    atak_gps_note_sentence();
 
     if ((strncmp(sentence, "$GPGGA", 6) == 0) || (strncmp(sentence, "$GNGGA", 6) == 0))
     {
@@ -1254,6 +1292,60 @@ static bool atak_gps_has_recent_fix(char *lat, size_t lat_len,
     return valid;
 }
 
+struct atak_gps_status
+{
+    bool nmea_seen;
+    bool fix_valid;
+    char lat[20];
+    char lon[20];
+    char hae[16];
+    uint8_t satellites;
+    uint32_t fix_age_ms;
+    uint32_t nmea_age_ms;
+    uint32_t sentence_count;
+    esp_err_t last_error;
+};
+
+static void atak_gps_get_status(struct atak_gps_status *status)
+{
+    uint32_t now_ms = mmosal_get_time_ms();
+
+    if (status == NULL)
+    {
+        return;
+    }
+
+    memset(status, 0, sizeof(*status));
+    status->last_error = ESP_OK;
+
+    if (atak_gps_state.lock == NULL)
+    {
+        return;
+    }
+
+    MMOSAL_MUTEX_GET_INF(atak_gps_state.lock);
+    status->nmea_seen = atak_gps_state.nmea_seen;
+    status->sentence_count = atak_gps_state.sentence_count;
+    status->last_error = atak_gps_state.last_error;
+
+    if (atak_gps_state.nmea_seen)
+    {
+        status->nmea_age_ms = now_ms - atak_gps_state.last_sentence_ms;
+    }
+
+    if (atak_gps_state.valid)
+    {
+        status->fix_age_ms = now_ms - atak_gps_state.last_update_ms;
+        status->fix_valid = status->fix_age_ms <= ATAK_GPS_FIX_STALE_MS;
+        (void)mmosal_safer_strcpy(status->lat, atak_gps_state.lat, sizeof(status->lat));
+        (void)mmosal_safer_strcpy(status->lon, atak_gps_state.lon, sizeof(status->lon));
+        (void)mmosal_safer_strcpy(status->hae, atak_gps_state.hae, sizeof(status->hae));
+        status->satellites = atak_gps_state.satellites;
+    }
+
+    MMOSAL_MUTEX_RELEASE(atak_gps_state.lock);
+}
+
 static void atak_gps_task(void *arg)
 {
     uart_config_t uart_cfg = {
@@ -1274,6 +1366,7 @@ static void atak_gps_task(void *arg)
     err = uart_driver_install(ATAK_GPS_UART_NUM, ATAK_GPS_UART_BUF_SIZE, 0, 0, NULL, 0);
     if (err != ESP_OK)
     {
+        atak_gps_set_error(err);
         printf("GPS UART driver install failed, err=%d\n", (int)err);
         mmosal_task_delete(NULL);
         return;
@@ -1282,6 +1375,7 @@ static void atak_gps_task(void *arg)
     err = uart_param_config(ATAK_GPS_UART_NUM, &uart_cfg);
     if (err != ESP_OK)
     {
+        atak_gps_set_error(err);
         printf("GPS UART config failed, err=%d\n", (int)err);
         mmosal_task_delete(NULL);
         return;
@@ -1291,14 +1385,16 @@ static void atak_gps_task(void *arg)
                        UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     if (err != ESP_OK)
     {
+        atak_gps_set_error(err);
         printf("GPS UART pin config failed, err=%d\n", (int)err);
         mmosal_task_delete(NULL);
         return;
     }
 
-    printf("GPS UART listening on UART%d RX=GPIO%d baud=%d\n",
+    printf("GPS UART listening on UART%d RX=GPIO%d TX=GPIO%d baud=%d\n",
            (int)ATAK_GPS_UART_NUM,
            (int)ATAK_GPS_UART_RX_PIN,
+           (int)ATAK_GPS_UART_TX_PIN,
            (int)ATAK_GPS_UART_BAUD_RATE);
 
     while (true)
@@ -1727,7 +1823,7 @@ static const char status_web_index_html[] =
     "const res=await fetch('/api/status',{cache:'no-store',signal:controller.signal});"
     "const data=await res.json();"
     "document.getElementById('summary').textContent="
-    "'IP '+data.ipv4+' | link '+data.link_state+' | RSSI '+data.rssi_dbm+' dBm | BMP180 '+data.bmp180.state;"
+    "'IP '+data.ipv4+' | link '+data.link_state+' | RSSI '+data.rssi_dbm+' dBm | GPS '+data.gps.state+' | sats '+data.gps.satellites;"
     "document.getElementById('payload').textContent=JSON.stringify(data,null,2);"
     "}catch(err){"
     "document.getElementById('summary').textContent='Failed to fetch status';"
@@ -1773,24 +1869,24 @@ static const char *web_link_state_to_string(enum mmipal_link_state link_state)
     return "unknown";
 }
 
-static const char *bmp180_state_to_string(bool detected, bool valid, esp_err_t last_error)
+static const char *gps_state_to_string(bool nmea_seen, bool fix_valid, esp_err_t last_error)
 {
-    if (valid)
+    if (last_error != ESP_OK)
     {
-        return "ok";
+        return "error";
     }
 
-    if (detected)
+    if (fix_valid)
     {
-        return "detected";
+        return "fix";
     }
 
-    if (last_error == ESP_OK)
+    if (nmea_seen)
     {
-        return "probing";
+        return "no_fix";
     }
 
-    return "error";
+    return "waiting_nmea";
 }
 
 static int build_status_json(char *buffer, size_t buffer_len)
@@ -1801,12 +1897,17 @@ static int build_status_json(char *buffer, size_t buffer_len)
     int32_t rssi_dbm = mmwlan_get_rssi();
     const char *link_state = web_link_state_to_string(mmipal_get_link_state());
     const char *iperf_mode = iperf_mode_to_string(IPERF_TYPE);
-    char bmp180_temp_text[16] = "";
-    bool bmp180_detected = false;
-    bool bmp180_valid = false;
-    esp_err_t bmp180_last_error = ESP_OK;
-    int32_t bmp180_temp_deci_c = 0;
-    int32_t bmp180_pressure_pa = 0;
+    const char *gps_state = "disabled";
+    bool gps_nmea_seen = false;
+    bool gps_fix_valid = false;
+    char gps_lat[20] = "";
+    char gps_lon[20] = "";
+    char gps_hae[16] = "";
+    uint8_t gps_satellites = 0;
+    uint32_t gps_fix_age_ms = 0;
+    uint32_t gps_nmea_age_ms = 0;
+    uint32_t gps_sentence_count = 0;
+    esp_err_t gps_last_error = ESP_OK;
 
     if ((buffer == NULL) || (buffer_len == 0))
     {
@@ -1826,17 +1927,22 @@ static int build_status_json(char *buffer, size_t buffer_len)
                    ATAK_COT_IP, (unsigned)ATAK_COT_PORT);
 #endif
 
-#if BMP180_ENABLE
-    bmp180_get_status(&bmp180_detected,
-                      &bmp180_valid,
-                      &bmp180_last_error,
-                      &bmp180_temp_deci_c,
-                      &bmp180_pressure_pa);
-    if (bmp180_detected || bmp180_valid)
+#if ATAK_COT_ENABLE && ATAK_GPS_ENABLE
     {
-        bmp180_format_temperature(bmp180_temp_deci_c,
-                                  bmp180_temp_text,
-                                  sizeof(bmp180_temp_text));
+        struct atak_gps_status status = {0};
+
+        atak_gps_get_status(&status);
+        gps_nmea_seen = status.nmea_seen;
+        gps_fix_valid = status.fix_valid;
+        (void)mmosal_safer_strcpy(gps_lat, status.lat, sizeof(gps_lat));
+        (void)mmosal_safer_strcpy(gps_lon, status.lon, sizeof(gps_lon));
+        (void)mmosal_safer_strcpy(gps_hae, status.hae, sizeof(gps_hae));
+        gps_satellites = status.satellites;
+        gps_fix_age_ms = status.fix_age_ms;
+        gps_nmea_age_ms = status.nmea_age_ms;
+        gps_sentence_count = status.sentence_count;
+        gps_last_error = status.last_error;
+        gps_state = gps_state_to_string(gps_nmea_seen, gps_fix_valid, gps_last_error);
     }
 #endif
 
@@ -1855,13 +1961,22 @@ static int build_status_json(char *buffer, size_t buffer_len)
         "\"iperf_port\":%u,"
         "\"cot_enabled\":%s,"
         "\"atak_target\":\"%s\","
-        "\"bmp180\":{"
+        "\"gps\":{"
         "\"enabled\":%s,"
         "\"state\":\"%s\","
-        "\"detected\":%s,"
-        "\"valid\":%s,"
-        "\"temperature_c\":\"%s\","
-        "\"pressure_pa\":%ld,"
+        "\"uart\":%d,"
+        "\"baud\":%d,"
+        "\"rx_gpio\":%d,"
+        "\"tx_gpio\":%d,"
+        "\"nmea_seen\":%s,"
+        "\"fix_valid\":%s,"
+        "\"latitude\":\"%s\","
+        "\"longitude\":\"%s\","
+        "\"hae\":\"%s\","
+        "\"satellites\":%u,"
+        "\"fix_age_ms\":%lu,"
+        "\"nmea_age_ms\":%lu,"
+        "\"sentence_count\":%lu,"
         "\"last_error\":\"%s\""
         "}"
         "}",
@@ -1877,23 +1992,26 @@ static int build_status_json(char *buffer, size_t buffer_len)
         "false",
 #endif
         atak_target,
-#if BMP180_ENABLE
+#if ATAK_COT_ENABLE && ATAK_GPS_ENABLE
         "true",
-        bmp180_state_to_string(bmp180_detected, bmp180_valid, bmp180_last_error),
-        bmp180_detected ? "true" : "false",
-        bmp180_valid ? "true" : "false",
-        bmp180_temp_text,
-        (long)bmp180_pressure_pa,
-        esp_err_to_name(bmp180_last_error)
 #else
         "false",
-        "disabled",
-        "false",
-        "false",
-        "",
-        0L,
-        "ESP_OK"
 #endif
+        gps_state,
+        (int)ATAK_GPS_UART_NUM,
+        (int)ATAK_GPS_UART_BAUD_RATE,
+        (int)ATAK_GPS_UART_RX_PIN,
+        (int)ATAK_GPS_UART_TX_PIN,
+        gps_nmea_seen ? "true" : "false",
+        gps_fix_valid ? "true" : "false",
+        gps_lat,
+        gps_lon,
+        gps_hae,
+        (unsigned)gps_satellites,
+        (unsigned long)gps_fix_age_ms,
+        (unsigned long)gps_nmea_age_ms,
+        (unsigned long)gps_sentence_count,
+        esp_err_to_name(gps_last_error)
     );
 }
 
@@ -1925,7 +2043,7 @@ static esp_err_t status_web_options_handler(httpd_req_t *req)
 
 static esp_err_t status_web_api_handler(httpd_req_t *req)
 {
-    char payload[768] = {0};
+    char payload[1024] = {0};
     int payload_len = build_status_json(payload, sizeof(payload));
 
     if ((payload_len < 0) || ((size_t)payload_len >= sizeof(payload)))
@@ -3009,6 +3127,12 @@ static void iperf_report_handler(const struct mmiperf_report *report, void *arg,
            bytes_transferred_formatted, units[bytes_transferred_unit_index],
            report->duration_ms, report->bandwidth_kbitpsec);
     printf("\n");
+    printf("COMMAND_TIMING source=\"ESP32 local\" command_type=\"iperf\" "
+           "command_sent_time_ms=%lu command_received_time_ms=%lu "
+           "command_executed_time_ms=%lu execution_status=success\n",
+           (unsigned long)iperf_command_sent_time_ms,
+           (unsigned long)iperf_command_received_time_ms,
+           (unsigned long)mmosal_get_time_ms());
 
     if ((report->report_type == MMIPERF_UDP_DONE_SERVER) ||
         (report->report_type == MMIPERF_TCP_DONE_SERVER))
@@ -3039,6 +3163,7 @@ static void start_tcp_client(void)
     args.report_fn = iperf_report_handler;
 
     mmiperf_start_tcp_client(&args);
+    iperf_command_received_time_ms = mmosal_get_time_ms();
     printf("\nIperf TCP client started, waiting for completion...\n");
 }
 
@@ -3062,6 +3187,7 @@ static void start_udp_client(void)
     args.report_fn = iperf_report_handler;
 
     mmiperf_start_udp_client(&args);
+    iperf_command_received_time_ms = mmosal_get_time_ms();
     printf("\nIperf UDP client started, waiting for completion...\n");
 }
 
@@ -3079,8 +3205,15 @@ static void start_tcp_server(void)
     if (iperf_handle == NULL)
     {
         printf("Failed to get local address\n");
+        printf("COMMAND_TIMING source=\"ESP32 local\" command_type=\"iperf\" "
+               "command_sent_time_ms=%lu command_received_time_ms=%lu "
+               "command_executed_time_ms=%lu execution_status=fail\n",
+               (unsigned long)iperf_command_sent_time_ms,
+               (unsigned long)mmosal_get_time_ms(),
+               (unsigned long)mmosal_get_time_ms());
         return;
     }
+    iperf_command_received_time_ms = mmosal_get_time_ms();
     printf("\nIperf TCP server started, waiting for client to connect...\n");
     struct mmipal_ip_config ip_config;
     enum mmipal_status status;
@@ -3114,8 +3247,15 @@ static void start_udp_server(void)
     if (iperf_handle == NULL)
     {
         printf("Failed to start iperf server\n");
+        printf("COMMAND_TIMING source=\"ESP32 local\" command_type=\"iperf\" "
+               "command_sent_time_ms=%lu command_received_time_ms=%lu "
+               "command_executed_time_ms=%lu execution_status=fail\n",
+               (unsigned long)iperf_command_sent_time_ms,
+               (unsigned long)mmosal_get_time_ms(),
+               (unsigned long)mmosal_get_time_ms());
         return;
     }
+    iperf_command_received_time_ms = mmosal_get_time_ms();
 
     printf("\nIperf UDP server started, waiting for client to connect...\n");
     struct mmipal_ip_config ip_config;
@@ -3148,7 +3288,7 @@ void app_main(void)
     app_wlan_init();
     app_wlan_start();
 
-#if ATAK_GPS_ENABLE
+#if ATAK_COT_ENABLE && ATAK_GPS_ENABLE
     start_atak_gps();
 #endif
 
@@ -3165,6 +3305,8 @@ void app_main(void)
 #endif
 
     enum iperf_type iperf_mode = IPERF_TYPE;
+    iperf_command_sent_time_ms = mmosal_get_time_ms();
+    iperf_command_received_time_ms = iperf_command_sent_time_ms;
 
     switch (iperf_mode)
     {

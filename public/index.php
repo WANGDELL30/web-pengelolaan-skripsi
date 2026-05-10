@@ -120,11 +120,6 @@ switch ($page) {
         $content = renderView(__DIR__ . '/../resources/views/pages/response.php');
         break;
     
-    case 'authentication':
-        $title = 'Authentication Tests';
-        $content = renderView(__DIR__ . '/../resources/views/pages/authentication.php');
-        break;
-    
     case 'encryption':
         $title = 'Encryption Tests';
         $content = renderView(__DIR__ . '/../resources/views/pages/encryption.php');

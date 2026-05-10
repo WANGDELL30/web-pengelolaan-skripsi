@@ -39,9 +39,7 @@ $summaryCards = [
     ],
     [
         'label' => 'Security Tests',
-        'value' => analysisMetric("SELECT
-            (SELECT COUNT(*) FROM authentication_tests) +
-            (SELECT COUNT(*) FROM encryption_tests) AS value"),
+        'value' => analysisMetric("SELECT COUNT(*) AS value FROM encryption_tests"),
         'icon' => 'fas fa-shield-alt',
         'color' => 'danger',
     ],

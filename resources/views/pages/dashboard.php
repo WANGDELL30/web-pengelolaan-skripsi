@@ -623,6 +623,7 @@ function createDashboardDistanceChart(chart) {
 }
 
 dashboardDistanceCharts.forEach(createDashboardDistanceChart);
+
 </script>
 
 <style>

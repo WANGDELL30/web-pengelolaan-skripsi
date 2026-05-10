@@ -589,9 +589,6 @@
             </a>
             
             <div class="sidebar-heading text-white-50 small mt-3 px-3">KEAMANAN</div>
-            <a href="index.php?page=authentication" class="nav-link <?php echo ($_GET['page'] ?? '') === 'authentication' ? 'active' : ''; ?>">
-                <i class="fas fa-user-shield"></i> Authentication
-            </a>
             <a href="index.php?page=encryption" class="nav-link <?php echo ($_GET['page'] ?? '') === 'encryption' ? 'active' : ''; ?>">
                 <i class="fas fa-lock"></i> Encryption
             </a>

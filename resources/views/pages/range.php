@@ -175,7 +175,744 @@ $pageConfig = [
 ];
 
 include __DIR__ . '/_test_page.php';
+?>
 
+<style>
+    .live-gps-card {
+        border: 1px solid #dbe4ef;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .live-gps-card .card-header {
+        border-bottom: 1px solid #e5edf7;
+        background: #ffffff;
+    }
+
+    .live-gps-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0;
+        border: 1px solid transparent;
+    }
+
+    .live-gps-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 0 4px rgba(100, 116, 139, 0.12);
+    }
+
+    .live-gps-status-waiting,
+    .live-gps-status-loading {
+        color: #475569;
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
+    .live-gps-status-no-fix {
+        color: #92400e;
+        background: #fffbeb;
+        border-color: #fde68a;
+    }
+
+    .live-gps-status-fix {
+        color: #166534;
+        background: #dcfce7;
+        border-color: #86efac;
+    }
+
+    .live-gps-status-error {
+        color: #991b1b;
+        background: #fee2e2;
+        border-color: #fecaca;
+    }
+
+    .live-gps-metric {
+        height: 100%;
+        min-height: 82px;
+        padding: 12px 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #f8fafc;
+    }
+
+    .live-gps-metric span {
+        display: block;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .live-gps-metric strong {
+        display: block;
+        margin-top: 7px;
+        color: #0f172a;
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+    }
+
+    .live-gps-bars {
+        display: grid;
+        gap: 18px;
+    }
+
+    .live-gps-axis {
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #ffffff;
+    }
+
+    .live-gps-axis-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+
+    .live-gps-axis-head span {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .live-gps-axis-head strong {
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 800;
+    }
+
+    .live-gps-track {
+        position: relative;
+        height: 14px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #dbeafe 0%, #e2e8f0 50%, #dcfce7 100%);
+        overflow: visible;
+    }
+
+    .live-gps-zero {
+        position: absolute;
+        top: -5px;
+        bottom: -5px;
+        left: 50%;
+        width: 2px;
+        background: rgba(15, 23, 42, 0.28);
+    }
+
+    .live-gps-fill {
+        position: absolute;
+        top: 3px;
+        height: 8px;
+        border-radius: 999px;
+        background: #2563eb;
+        transition: left 0.25s ease, width 0.25s ease;
+    }
+
+    .live-gps-marker {
+        position: absolute;
+        top: 50%;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #0f172a;
+        border: 3px solid #ffffff;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.22);
+        transform: translate(-50%, -50%);
+        transition: left 0.25s ease, opacity 0.25s ease;
+    }
+
+    .live-gps-marker.is-empty {
+        opacity: 0.45;
+        background: #64748b;
+    }
+
+    .live-gps-scale {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .live-gps-message {
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    .live-gps-message-fix {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+        color: #166534;
+    }
+
+    .live-gps-message-no-fix {
+        border-color: #fde68a;
+        background: #fffbeb;
+        color: #92400e;
+    }
+
+    .live-gps-message-error {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #991b1b;
+    }
+
+    .live-gps-autofill-section {
+        padding: 16px;
+        border: 2px dashed #c7d2fe;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #eef2ff 0%, #f0fdf4 100%);
+    }
+
+    .live-gps-autofill-section.is-active {
+        border-color: #86efac;
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    }
+
+    .live-gps-autofill-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        border: 2px solid #c7d2fe;
+        background: #ffffff;
+        color: #4338ca;
+        transition: all 0.2s ease;
+    }
+
+    .live-gps-autofill-toggle:hover {
+        background: #eef2ff;
+    }
+
+    .live-gps-autofill-toggle.is-active {
+        border-color: #16a34a;
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .live-gps-autofill-toggle .toggle-icon {
+        transition: transform 0.3s ease;
+    }
+
+    .live-gps-autofill-toggle.is-active .toggle-icon {
+        transform: rotate(180deg);
+    }
+
+    .live-gps-autofill-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    .live-gps-autofill-indicator.is-active {
+        background: #dcfce7;
+        color: #166534;
+        animation: gps-pulse 2s infinite;
+    }
+
+    @keyframes gps-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+
+    @media (max-width: 767.98px) {
+        .live-gps-axis-head {
+            display: block;
+        }
+
+        .live-gps-axis-head strong {
+            display: block;
+            margin-top: 4px;
+        }
+    }
+</style>
+
+<div class="content-section">
+    <div class="card live-gps-card">
+        <div class="card-header py-3 d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-location-crosshairs"></i> Live GPS Slave
+                </h6>
+                <small class="text-muted">Data real-time dari modul GPS 7M pada slave ESP32. Koordinat bisa digunakan otomatis atau input manual.</small>
+            </div>
+            <span class="live-gps-status live-gps-status-waiting" id="liveGpsStateBadge">
+                <span class="live-gps-dot"></span>
+                Waiting
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 align-items-end mb-3">
+                <div class="col-lg-7">
+                    <label for="liveGpsApiUrl" class="form-label">GPS Status API URL</label>
+                    <input type="url" class="form-control" id="liveGpsApiUrl" value="http://192.168.1.113/api/status" placeholder="http://192.168.1.113/api/status">
+                </div>
+                <div class="col-lg-5">
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-primary" id="liveGpsSaveUrl">
+                            <i class="fas fa-link"></i> Pakai URL
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="liveGpsRefreshNow">
+                            <i class="fas fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 col-6">
+                    <div class="live-gps-metric">
+                        <span>Latitude</span>
+                        <strong id="liveGpsLatitude">-</strong>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="live-gps-metric">
+                        <span>Longitude</span>
+                        <strong id="liveGpsLongitude">-</strong>
+                    </div>
+                </div>
+                <div class="col-md-2 col-6">
+                    <div class="live-gps-metric">
+                        <span>Satelit</span>
+                        <strong id="liveGpsSatellites">0</strong>
+                    </div>
+                </div>
+                <div class="col-md-2 col-6">
+                    <div class="live-gps-metric">
+                        <span>NMEA</span>
+                        <strong id="liveGpsNmea">-</strong>
+                    </div>
+                </div>
+                <div class="col-md-2 col-12">
+                    <div class="live-gps-metric">
+                        <span>Update</span>
+                        <strong id="liveGpsUpdated">-</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auto-fill Section -->
+            <div class="live-gps-autofill-section mb-4" id="liveGpsAutofillSection">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                        <button type="button" class="live-gps-autofill-toggle" id="liveGpsAutofillToggle">
+                            <i class="fas fa-satellite-dish toggle-icon"></i>
+                            <span id="liveGpsAutofillToggleLabel">Auto-fill OFF</span>
+                        </button>
+                        <span class="live-gps-autofill-indicator" id="liveGpsAutofillIndicator">
+                            <i class="fas fa-circle-dot"></i>
+                            <span id="liveGpsAutofillIndicatorLabel">Manual mode</span>
+                        </span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="liveGpsApplyOnce" title="Terapkan koordinat GPS saat ini ke form sekali saja">
+                        <i class="fas fa-crosshairs"></i> Terapkan Sekarang
+                    </button>
+                </div>
+                <small class="text-muted d-block">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Auto-fill:</strong> Saat aktif, field <em>Slave GPS Latitude</em> & <em>Longitude</em> di form input akan otomatis terisi dari modul GPS setiap ada update.
+                    Anda tetap bisa mengetik manual kapan saja — auto-fill akan berhenti sementara saat field diedit manual.
+                    Klik <strong>Terapkan Sekarang</strong> untuk mengisi sekali tanpa mengaktifkan auto-fill terus-menerus.
+                </small>
+            </div>
+
+            <div class="live-gps-bars">
+                <div class="live-gps-axis">
+                    <div class="live-gps-axis-head">
+                        <span>Latitude range</span>
+                        <strong id="liveGpsLatitudeLabel">Belum ada fix</strong>
+                    </div>
+                    <div class="live-gps-track">
+                        <div class="live-gps-zero"></div>
+                        <div class="live-gps-fill" id="liveGpsLatitudeFill"></div>
+                        <div class="live-gps-marker" id="liveGpsLatitudeMarker"></div>
+                    </div>
+                    <div class="live-gps-scale">
+                        <span>-90</span>
+                        <span>0</span>
+                        <span>90</span>
+                    </div>
+                </div>
+
+                <div class="live-gps-axis">
+                    <div class="live-gps-axis-head">
+                        <span>Longitude range</span>
+                        <strong id="liveGpsLongitudeLabel">Belum ada fix</strong>
+                    </div>
+                    <div class="live-gps-track">
+                        <div class="live-gps-zero"></div>
+                        <div class="live-gps-fill" id="liveGpsLongitudeFill"></div>
+                        <div class="live-gps-marker" id="liveGpsLongitudeMarker"></div>
+                    </div>
+                    <div class="live-gps-scale">
+                        <span>-180</span>
+                        <span>0</span>
+                        <span>180</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="live-gps-message mt-3" id="liveGpsMessage">
+                Menunggu data GPS dari slave.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function initLiveGpsPanel() {
+    var panel = document.querySelector('.live-gps-card');
+    if (!panel) return;
+
+    var storageKey = 'wifiHalowGpsStatusUrl';
+    var autofillKey = 'wifiHalowGpsAutofill';
+    var refreshMs = 3000;
+    var timer = null;
+    var activeRequest = null;
+    var autofillEnabled = localStorage.getItem(autofillKey) === '1';
+    var lastGpsLat = null;
+    var lastGpsLng = null;
+    var manualOverride = false;
+
+    var apiInput = document.getElementById('liveGpsApiUrl');
+    var saveButton = document.getElementById('liveGpsSaveUrl');
+    var refreshButton = document.getElementById('liveGpsRefreshNow');
+    var stateBadge = document.getElementById('liveGpsStateBadge');
+    var message = document.getElementById('liveGpsMessage');
+    var autofillToggle = document.getElementById('liveGpsAutofillToggle');
+    var autofillSection = document.getElementById('liveGpsAutofillSection');
+    var autofillIndicator = document.getElementById('liveGpsAutofillIndicator');
+    var autofillIndicatorLabel = document.getElementById('liveGpsAutofillIndicatorLabel');
+    var autofillToggleLabel = document.getElementById('liveGpsAutofillToggleLabel');
+    var applyOnceButton = document.getElementById('liveGpsApplyOnce');
+
+    function text(id, value) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = value;
+    }
+
+    function numberValue(value) {
+        var parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function formatCoord(value) {
+        var parsed = numberValue(value);
+        return parsed === null ? '-' : parsed.toFixed(6);
+    }
+
+    function normalizeApiUrl(value) {
+        var url = String(value || '').trim();
+        if (url === '') {
+            url = 'http://192.168.1.113/api/status';
+        }
+
+        if (!/^https?:\/\//i.test(url)) {
+            url = 'http://' + url;
+        }
+
+        try {
+            var parsed = new URL(url);
+            if (parsed.pathname === '/' || parsed.pathname === '') {
+                parsed.pathname = '/api/status';
+            }
+            return parsed.href;
+        } catch (error) {
+            return url;
+        }
+    }
+
+    function setStatus(state, label) {
+        if (!stateBadge) return;
+
+        stateBadge.className = 'live-gps-status live-gps-status-' + state;
+        stateBadge.innerHTML = '<span class="live-gps-dot"></span>' + label;
+    }
+
+    function setAxis(prefix, value, min, max) {
+        var marker = document.getElementById(prefix + 'Marker');
+        var fill = document.getElementById(prefix + 'Fill');
+        var label = document.getElementById(prefix + 'Label');
+        var parsed = numberValue(value);
+        var zeroPct = ((0 - min) / (max - min)) * 100;
+
+        if (!marker || !fill || !label) return;
+
+        if (parsed === null) {
+            marker.style.left = zeroPct + '%';
+            fill.style.left = zeroPct + '%';
+            fill.style.width = '0%';
+            marker.classList.add('is-empty');
+            label.textContent = 'Belum ada fix';
+            return;
+        }
+
+        var pct = ((Math.max(min, Math.min(max, parsed)) - min) / (max - min)) * 100;
+        var left = Math.min(pct, zeroPct);
+        var width = Math.abs(pct - zeroPct);
+
+        marker.style.left = pct + '%';
+        fill.style.left = left + '%';
+        fill.style.width = width + '%';
+        marker.classList.remove('is-empty');
+        label.textContent = parsed.toFixed(6);
+    }
+
+    function stateFromGps(gps) {
+        if (!gps) {
+            return { cls: 'error', label: 'API Error' };
+        }
+
+        if (gps.last_error && gps.last_error !== 'ESP_OK') {
+            return { cls: 'error', label: 'GPS Error' };
+        }
+
+        if (gps.fix_valid) {
+            return { cls: 'fix', label: 'GPS Fix' };
+        }
+
+        if (gps.nmea_seen) {
+            return { cls: 'no-fix', label: 'No Fix' };
+        }
+
+        return { cls: 'waiting', label: 'Waiting NMEA' };
+    }
+
+    function messageFromGps(gps) {
+        if (!gps) {
+            return 'API tidak mengembalikan field gps.';
+        }
+
+        if (gps.fix_valid) {
+            return 'GPS sudah mendapat fix. Latitude dan longitude siap dipakai.' + (autofillEnabled ? ' Auto-fill aktif — form Slave GPS diperbarui otomatis.' : '');
+        }
+
+        if (gps.nmea_seen) {
+            return 'Data NMEA sudah masuk, tetapi modul GPS belum lock satelit. Bawa antena ke area terbuka.';
+        }
+
+        return 'Belum ada data NMEA dari GPS. Cek kabel GPS TX ke GPIO44/D7, GND, power, dan baud 9600.';
+    }
+
+    function updateAutofillUi() {
+        if (autofillToggle) {
+            autofillToggle.classList.toggle('is-active', autofillEnabled);
+        }
+        if (autofillToggleLabel) {
+            autofillToggleLabel.textContent = autofillEnabled ? 'Auto-fill ON' : 'Auto-fill OFF';
+        }
+        if (autofillSection) {
+            autofillSection.classList.toggle('is-active', autofillEnabled);
+        }
+        if (autofillIndicator) {
+            autofillIndicator.classList.toggle('is-active', autofillEnabled);
+        }
+        if (autofillIndicatorLabel) {
+            autofillIndicatorLabel.textContent = autofillEnabled ? 'GPS → Form aktif' : 'Manual mode';
+        }
+    }
+
+    function fillSlaveGpsFields(lat, lng) {
+        var latFields = document.querySelectorAll('[name="gps_latitude"]');
+        var lngFields = document.querySelectorAll('[name="gps_longitude"]');
+
+        latFields.forEach(function(field) {
+            field.value = lat;
+            $(field).trigger('change');
+        });
+
+        lngFields.forEach(function(field) {
+            field.value = lng;
+            $(field).trigger('change');
+        });
+    }
+
+    function updateGpsUi(data) {
+        var gps = data && data.gps ? data.gps : null;
+        var state = stateFromGps(gps);
+        var lat = gps ? gps.latitude : '';
+        var lon = gps ? gps.longitude : '';
+
+        lastGpsLat = numberValue(lat);
+        lastGpsLng = numberValue(lon);
+
+        setStatus(state.cls, state.label);
+        text('liveGpsLatitude', formatCoord(lat));
+        text('liveGpsLongitude', formatCoord(lon));
+        text('liveGpsSatellites', gps ? String(gps.satellites || 0) : '0');
+        text('liveGpsNmea', gps && gps.nmea_seen ? String(gps.sentence_count || 0) : '-');
+        text('liveGpsUpdated', new Date().toLocaleTimeString('id-ID'));
+        setAxis('liveGpsLatitude', lat, -90, 90);
+        setAxis('liveGpsLongitude', lon, -180, 180);
+
+        if (message) {
+            message.textContent = messageFromGps(gps);
+            message.className = 'live-gps-message mt-3 live-gps-message-' + state.cls;
+        }
+
+        // Auto-fill form fields if enabled and we have a valid fix
+        if (autofillEnabled && !manualOverride && lastGpsLat !== null && lastGpsLng !== null && gps && gps.fix_valid) {
+            fillSlaveGpsFields(lastGpsLat.toFixed(6), lastGpsLng.toFixed(6));
+        }
+    }
+
+    async function refreshGps() {
+        var apiUrl = normalizeApiUrl(apiInput ? apiInput.value : '');
+        if (apiInput) apiInput.value = apiUrl;
+
+        if (activeRequest) {
+            activeRequest.abort();
+        }
+
+        var controller = new AbortController();
+        activeRequest = controller;
+
+        try {
+            setStatus('loading', 'Refreshing');
+            var response = await fetch(apiUrl, {
+                cache: 'no-store',
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+
+            updateGpsUi(await response.json());
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+            setStatus('error', 'API Error');
+            text('liveGpsUpdated', new Date().toLocaleTimeString('id-ID'));
+            if (message) {
+                message.textContent = 'Gagal membaca API GPS: ' + error.message;
+                message.className = 'live-gps-message mt-3 live-gps-message-error';
+            }
+        } finally {
+            if (activeRequest === controller) {
+                activeRequest = null;
+            }
+        }
+    }
+
+    function startAutoRefresh() {
+        window.clearInterval(timer);
+        timer = window.setInterval(refreshGps, refreshMs);
+    }
+
+    // Detect manual edits to the GPS fields - pause auto-fill temporarily
+    $(document).on('focus', '[name="gps_latitude"], [name="gps_longitude"]', function() {
+        if (autofillEnabled) {
+            manualOverride = true;
+        }
+    });
+
+    $(document).on('blur', '[name="gps_latitude"], [name="gps_longitude"]', function() {
+        // Resume auto-fill after blur if the value hasn't been changed manually
+        setTimeout(function() {
+            manualOverride = false;
+        }, 500);
+    });
+
+    // Auto-fill toggle
+    if (autofillToggle) {
+        autofillToggle.addEventListener('click', function() {
+            autofillEnabled = !autofillEnabled;
+            manualOverride = false;
+            localStorage.setItem(autofillKey, autofillEnabled ? '1' : '0');
+            updateAutofillUi();
+
+            // Immediately fill if enabling and we have data
+            if (autofillEnabled && lastGpsLat !== null && lastGpsLng !== null) {
+                fillSlaveGpsFields(lastGpsLat.toFixed(6), lastGpsLng.toFixed(6));
+            }
+        });
+    }
+
+    // Apply once button
+    if (applyOnceButton) {
+        applyOnceButton.addEventListener('click', function() {
+            if (lastGpsLat !== null && lastGpsLng !== null) {
+                fillSlaveGpsFields(lastGpsLat.toFixed(6), lastGpsLng.toFixed(6));
+
+                // Brief visual feedback
+                applyOnceButton.innerHTML = '<i class="fas fa-check"></i> Diterapkan!';
+                applyOnceButton.classList.remove('btn-outline-primary');
+                applyOnceButton.classList.add('btn-success');
+                setTimeout(function() {
+                    applyOnceButton.innerHTML = '<i class="fas fa-crosshairs"></i> Terapkan Sekarang';
+                    applyOnceButton.classList.remove('btn-success');
+                    applyOnceButton.classList.add('btn-outline-primary');
+                }, 1500);
+            } else {
+                applyOnceButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Belum ada fix';
+                applyOnceButton.classList.remove('btn-outline-primary');
+                applyOnceButton.classList.add('btn-warning');
+                setTimeout(function() {
+                    applyOnceButton.innerHTML = '<i class="fas fa-crosshairs"></i> Terapkan Sekarang';
+                    applyOnceButton.classList.remove('btn-warning');
+                    applyOnceButton.classList.add('btn-outline-primary');
+                }, 1500);
+            }
+        });
+    }
+
+    // Init
+    updateAutofillUi();
+
+    if (apiInput && localStorage.getItem(storageKey)) {
+        apiInput.value = localStorage.getItem(storageKey);
+    }
+
+    if (saveButton) {
+        saveButton.addEventListener('click', function() {
+            var apiUrl = normalizeApiUrl(apiInput ? apiInput.value : '');
+            if (apiInput) apiInput.value = apiUrl;
+            localStorage.setItem(storageKey, apiUrl);
+            refreshGps();
+            startAutoRefresh();
+        });
+    }
+
+    if (refreshButton) {
+        refreshButton.addEventListener('click', refreshGps);
+    }
+
+    refreshGps();
+    startAutoRefresh();
+})();
+</script>
+
+<?php
 if (!function_exists('rangeSpotPointColor')) {
     function rangeSpotPointColor($status) {
         $status = strtolower((string) $status);
