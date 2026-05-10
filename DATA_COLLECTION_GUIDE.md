@@ -531,7 +531,7 @@ Tujuan: menguji pengiriman dan eksekusi command ke node.
 | Field | Cara mendapatkan |
 |---|---|
 | `test_date` | Tanggal |
-| `command_type` | `reset`, `shutdown`, `restart`, `turn_on`, `turn_off`, `configuration_update` |
+| `command_type` | Jenis command dari example ESP32: `iperf`, `porting assistant`, `rf-test`, `scan`, `sta connect`, `sta reboot`, `transfer reset`, atau `web camera server` |
 | `source` | Pengirim command |
 | `target_node_id` | Target |
 | `command_sent_time_ms` | Timestamp saat command dikirim |
@@ -539,6 +539,27 @@ Tujuan: menguji pengiriman dan eksekusi command ke node.
 | `command_executed_time_ms` | Timestamp selesai dieksekusi |
 | `execution_status` | `success` atau `fail` |
 | `notes` | Detail command |
+
+### Sumber data dari examples ESP32
+
+Beberapa example firmware sekarang mencetak log timing standar:
+
+```text
+COMMAND_TIMING source="ESP32 local" command_type="scan" command_sent_time_ms=123 command_received_time_ms=124 command_executed_time_ms=4567 execution_status=success
+COMMAND_TIMING source="morsectrl UART" command_type="rf-test" command_sent_time_ms=1000 command_received_time_ms=1020 command_executed_time_ms=1088 execution_status=success
+COMMAND_TIMING source="ESP32 local" command_type="porting assistant" command_sent_time_ms=200 command_received_time_ms=200 command_executed_time_ms=230 execution_status=success step="Read chip ID"
+```
+
+Cara input ke web:
+
+1. Flash example yang ingin diuji, misalnya `scan`, `rf-test`, atau `porting_assistant`.
+2. Buka serial monitor.
+3. Jalankan command/test sesuai example.
+4. Salin nilai dari baris `COMMAND_TIMING` ke halaman Command Execution.
+5. Isi `source` dengan asal command, misalnya `ESP32 local`, `morsectrl UART`, atau `Website`.
+6. Isi `target_node_id` dengan target, misalnya `SLAVE-HALOW-01` atau `MM6108`.
+
+Catatan: untuk example yang berjalan lokal seperti `scan` dan `porting_assistant`, `command_sent_time_ms` dan `command_received_time_ms` adalah waktu internal firmware saat command mulai diproses. Untuk command eksternal seperti `rf-test`, `command_sent_time_ms` adalah waktu firmware melihat data UART pertama masuk, bukan waktu absolut dari PC.
 
 ### Rumus otomatis aplikasi
 
@@ -573,31 +594,7 @@ Response Time Total = response_time_ms - request_time_ms
 Average/Minimum/Maximum = nilai response time per input
 ```
 
-## 13. Authentication Test
-
-Tujuan: menguji autentikasi user pada aplikasi.
-
-### Data yang diambil
-
-| Field | Cara mendapatkan |
-|---|---|
-| `test_date` | Tanggal |
-| `user_role` | `admin`, `operator`, `viewer` |
-| `login_attempt_type` | `valid_user`, `invalid_user`, `wrong_password`, `unauthorized_access` |
-| `authentication_method` | Contoh `password` |
-| `attempt_count` | Jumlah percobaan |
-| `success_count` | Jumlah berhasil |
-| `failed_count` | Jumlah gagal |
-| `notes` | Skenario pengujian |
-
-### Rumus otomatis aplikasi
-
-```text
-Success Rate = success_count / attempt_count x 100
-Failure Rate = failed_count / attempt_count x 100
-```
-
-## 14. Encryption Test
+## 13. Encryption Test
 
 Tujuan: menguji keamanan komunikasi.
 
@@ -628,7 +625,7 @@ secure = sniffing unreadable dan data integrity valid
 insecure = selain kondisi di atas
 ```
 
-## 15. Text Communication Test
+## 14. Text Communication Test
 
 Tujuan: menguji pengiriman pesan teks master ke slave atau slave ke master.
 
@@ -664,7 +661,7 @@ Catatan:
 - Port `80` dipakai untuk API HTTP ESP32.
 - Port `5001` dipakai untuk iperf, bukan untuk API pesan.
 
-## 16. Checklist Pengambilan Data Lapangan
+## 15. Checklist Pengambilan Data Lapangan
 
 Gunakan checklist ini untuk setiap titik uji.
 
@@ -689,7 +686,7 @@ Gunakan checklist ini untuk setiap titik uji.
 [ ] Notes lapangan ditulis
 ```
 
-## 17. Format Catatan Mentah yang Disarankan
+## 16. Format Catatan Mentah yang Disarankan
 
 Sebelum dimasukkan ke web, catat data mentah seperti ini:
 
@@ -737,7 +734,7 @@ Catatan:
 Link foto/video:
 ```
 
-## 18. Rekomendasi Pengulangan Pengujian
+## 17. Rekomendasi Pengulangan Pengujian
 
 Untuk data yang lebih kuat:
 
@@ -749,7 +746,7 @@ Untuk data yang lebih kuat:
 - Catat kondisi cuaca untuk outdoor.
 - Untuk range test, gunakan kode titik konsisten seperti `TP-001`, `TP-002`, dan seterusnya.
 
-## 19. Data yang Bisa Diotomatisasi Berikutnya
+## 18. Data yang Bisa Diotomatisasi Berikutnya
 
 Firmware dapat dikembangkan agar `/api/status` juga mengeluarkan:
 
@@ -770,4 +767,3 @@ Bagian yang perlu dimodifikasi:
 1. Simpan hasil `struct mmiperf_report` terakhir di variabel global.
 2. Tambahkan field tersebut ke fungsi `build_status_json()`.
 3. Jika SNR tersedia dari API/vendor/tool Morse, tambahkan ke JSON sebagai `snr_db`.
-

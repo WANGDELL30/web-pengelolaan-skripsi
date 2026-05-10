@@ -11,12 +11,11 @@ $pageConfig = [
         ['field' => 'power_w', 'label' => 'Power', 'unit' => 'W', 'type' => 'bar'],
         ['field' => 'estimated_runtime_hour', 'label' => 'Runtime', 'unit' => 'h', 'type' => 'line'],
         ['field' => 'cpu_usage_percent', 'label' => 'CPU Usage', 'unit' => '%', 'type' => 'bar'],
-        ['field' => 'cpu_temperature_c', 'label' => 'CPU Temp', 'unit' => 'C', 'type' => 'line'],
     ],
     'chart_status_field' => 'device_type',
     'chart_notes' => [
         'Power tinggi biasanya mengurangi estimasi runtime baterai.',
-        'CPU usage dan CPU temperature membantu membaca beban perangkat saat pengujian.',
+        'CPU usage dan RAM usage membantu membaca beban perangkat saat pengujian.',
     ],
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
@@ -28,7 +27,6 @@ $pageConfig = [
         ['name' => 'battery_capacity_mah', 'label' => 'Battery Capacity (mAh)', 'type' => 'number', 'integer' => true],
         ['name' => 'cpu_usage_percent', 'label' => 'CPU Usage (%)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'ram_usage_percent', 'label' => 'RAM Usage (%)', 'type' => 'number', 'step' => '0.01'],
-        ['name' => 'cpu_temperature_c', 'label' => 'CPU Temperature (C)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'rssi_dbm', 'label' => 'RSSI (dBm)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'snr_db', 'label' => 'SNR (dB)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'notes', 'label' => 'Notes', 'type' => 'textarea'],
@@ -59,7 +57,6 @@ $pageConfig = [
         ['label' => 'Power', 'field' => 'power_w', 'decimals' => 2, 'suffix' => ' W'],
         ['label' => 'Energy', 'field' => 'energy_wh', 'decimals' => 4, 'suffix' => ' Wh'],
         ['label' => 'Runtime', 'field' => 'estimated_runtime_hour', 'decimals' => 2, 'suffix' => ' h'],
-        ['label' => 'CPU Temp', 'field' => 'cpu_temperature_c', 'decimals' => 2, 'suffix' => ' C'],
     ],
 ];
 

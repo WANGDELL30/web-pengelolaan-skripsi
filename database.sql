@@ -250,7 +250,7 @@ CREATE TABLE power_consumption_tests (
 CREATE TABLE command_execution_tests (
     id INT AUTO_INCREMENT PRIMARY KEY,
     test_date DATE NOT NULL,
-    command_type ENUM('reset', 'shutdown', 'restart', 'turn_on', 'turn_off', 'configuration_update'),
+    command_type VARCHAR(80),
     source VARCHAR(50),
     target_node_id VARCHAR(50),
     command_sent_time_ms BIGINT,
