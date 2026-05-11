@@ -22,7 +22,7 @@
             Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
         }
     </script>
-    <link rel="stylesheet" href="css/style.css?v=20260427-layout5">
+    <link rel="stylesheet" href="css/style.css?v=20260511-sidebar-fix">
     <style>
         :root {
             --navy: #1e3c72;
@@ -425,14 +425,12 @@
         }
 
         .sidebar-heading {
-            position: sticky;
-            top: 0;
-            z-index: 1;
+            position: relative;
+            z-index: auto;
             padding-top: 10px !important;
-            padding-bottom: 8px !important;
-            background: linear-gradient(180deg, rgba(26,47,90,0.98), rgba(26,47,90,0.92));
-            backdrop-filter: blur(4px);
-            border-radius: 6px;
+            padding-bottom: 6px !important;
+            background: transparent;
+            border-radius: 4px;
         }
         
         .content-section {
@@ -638,7 +636,7 @@
         </div>
         
         <div class="content">
-            <?php echo $content; ?>
+            <?php echo $content ?? ''; ?>
         </div>
     </div>
     
@@ -646,6 +644,6 @@
     <?php if (($_GET['page'] ?? '') === 'range'): ?>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <?php endif; ?>
-    <script src="js/main.js?v=20260427-layout5"></script>
+    <script src="js/main.js?v=20260511-sidebar-fix"></script>
 </body>
 </html>
