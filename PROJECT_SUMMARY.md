@@ -62,9 +62,8 @@ wifi-testing-system/
 11. `power_consumption_tests` - Module 3B
 12. `command_execution_tests` - Module 4A
 13. `response_time_tests` - Module 4B
-14. `authentication_tests` - Module 5A
-15. `encryption_tests` - Module 5B
-16. `generated_reports` - Report archive
+14. `encryption_tests` - Module 5
+15. `generated_reports` - Report archive
 
 ## Features Implemented
 

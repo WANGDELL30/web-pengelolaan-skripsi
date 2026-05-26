@@ -437,9 +437,10 @@ foreach ($connectivityGraphRows as $row) {
             </thead>
             <tbody>
                 <?php if (count($connectivity_tests) > 0): ?>
+                    <?php $connectivityDisplayId = 1; ?>
                     <?php foreach ($connectivity_tests as $test): ?>
                     <tr>
-                        <td><?php echo $test['id']; ?></td>
+                        <td><?php echo $connectivityDisplayId++; ?></td>
                         <td><?php echo formatDate($test['test_date']); ?></td>
                         <td><?php echo htmlspecialchars($test['location_name']); ?></td>
                         <td><?php echo ucfirst($test['environment_type']); ?></td>
@@ -767,7 +768,7 @@ $(document).ready(function() {
         "language": {
             "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json"
         },
-        "order": [[0, 'desc']],
+        "order": [[0, 'asc']],
         "columnDefs": [
             { "targets": -1, "orderable": false, "searchable": false }
         ]
