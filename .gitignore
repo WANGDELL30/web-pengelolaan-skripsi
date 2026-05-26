@@ -11,8 +11,8 @@ node_modules/
 *.bak
 proxy_output.html
 
-# Database files - jangan di-commit ke repo
-database.sql
+# Database seed/dummy data - jangan di-commit ke repo
+# database.sql - SEKARANG DI-TRACK agar bisa dishare dengan Aranda via GitHub
 database-seed-dummy-data.sql
 
 mm-iot-esp32-main/build/
