@@ -588,9 +588,14 @@ $detailLabels['updated_at'] = 'Updated At';
 </div>
 
 <div class="content-section">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <h4 class="mb-0"><i class="fas fa-table"></i> Data Terbaru</h4>
-        <span class="badge bg-secondary"><?php echo count($rows); ?> data</span>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <a class="btn btn-success btn-sm" href="export_excel.php?table=<?php echo urlencode($pageConfig['table']); ?>">
+                <i class="fas fa-file-excel"></i> Export Excel 365
+            </a>
+            <span class="badge bg-secondary"><?php echo count($rows); ?> data</span>
+        </div>
     </div>
 
     <div class="table-responsive">

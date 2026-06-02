@@ -405,9 +405,12 @@ foreach ($connectivityGraphRows as $row) {
 </div>
 
 <div class="content-section">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <h4><i class="fas fa-table"></i> Connectivity Test Results</h4>
-        <div>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <a class="btn btn-success btn-sm" href="export_excel.php?table=connectivity_tests">
+                <i class="fas fa-file-excel"></i> Export Excel 365
+            </a>
             <button class="btn btn-outline-primary btn-sm" onclick="exportTable('connectivity', 'csv')">
                 <i class="fas fa-file-csv"></i> Export CSV
             </button>

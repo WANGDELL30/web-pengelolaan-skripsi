@@ -473,7 +473,7 @@ include __DIR__ . '/_test_page.php';
             <div class="row g-3 align-items-end mb-3">
                 <div class="col-lg-7">
                     <label for="liveGpsApiUrl" class="form-label">GPS Status API URL</label>
-                    <input type="url" class="form-control" id="liveGpsApiUrl" value="http://192.168.1.113/api/status" placeholder="http://192.168.1.113/api/status">
+                    <input type="url" class="form-control" id="liveGpsApiUrl" value="http://192.168.1.112/api/status" placeholder="http://192.168.1.112/api/status">
                 </div>
                 <div class="col-lg-5">
                     <div class="d-flex flex-wrap gap-2">
@@ -595,7 +595,8 @@ include __DIR__ . '/_test_page.php';
 
     var storageKey = 'wifiHalowGpsStatusUrl';
     var autofillKey = 'wifiHalowGpsAutofill';
-    var refreshMs = 3000;
+    var refreshMs = 5000;
+    var fetchTimeoutMs = 4000;
     var timer = null;
     var activeRequest = null;
     var autofillEnabled = localStorage.getItem(autofillKey) === '1';
@@ -633,7 +634,7 @@ include __DIR__ . '/_test_page.php';
     function normalizeApiUrl(value) {
         var url = String(value || '').trim();
         if (url === '') {
-            url = 'http://192.168.1.113/api/status';
+            url = 'http://192.168.1.112/api/status';
         }
 
         if (!/^https?:\/\//i.test(url)) {
@@ -786,15 +787,24 @@ include __DIR__ . '/_test_page.php';
     }
 
     async function refreshGps() {
+        // Hindari polling kalau tab background, hemat trafik HaLow
+        if (typeof document !== 'undefined' && document.hidden) {
+            return;
+        }
+
+        // Kalau request sebelumnya masih jalan, skip cycle ini supaya tidak menumpuk
+        if (activeRequest) {
+            return;
+        }
+
         var apiUrl = normalizeApiUrl(apiInput ? apiInput.value : '');
         if (apiInput) apiInput.value = apiUrl;
 
-        if (activeRequest) {
-            activeRequest.abort();
-        }
-
         var controller = new AbortController();
         activeRequest = controller;
+        var timeoutId = window.setTimeout(function () {
+            controller.abort();
+        }, fetchTimeoutMs);
 
         try {
             setStatus('loading', 'Refreshing');
@@ -810,7 +820,15 @@ include __DIR__ . '/_test_page.php';
 
             updateGpsUi(await response.json());
         } catch (error) {
-            if (error.name === 'AbortError') return;
+            if (error.name === 'AbortError') {
+                setStatus('error', 'Timeout');
+                text('liveGpsUpdated', new Date().toLocaleTimeString('id-ID'));
+                if (message) {
+                    message.textContent = 'API GPS lambat merespons (>' + (fetchTimeoutMs / 1000) + 's). Cek koneksi HaLow ke slave.';
+                    message.className = 'live-gps-message mt-3 live-gps-message-error';
+                }
+                return;
+            }
             setStatus('error', 'API Error');
             text('liveGpsUpdated', new Date().toLocaleTimeString('id-ID'));
             if (message) {
@@ -818,6 +836,7 @@ include __DIR__ . '/_test_page.php';
                 message.className = 'live-gps-message mt-3 live-gps-message-error';
             }
         } finally {
+            window.clearTimeout(timeoutId);
             if (activeRequest === controller) {
                 activeRequest = null;
             }
@@ -828,6 +847,13 @@ include __DIR__ . '/_test_page.php';
         window.clearInterval(timer);
         timer = window.setInterval(refreshGps, refreshMs);
     }
+
+    // Saat tab kembali aktif, refresh sekali biar data tidak basi
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+            refreshGps();
+        }
+    });
 
     // Detect manual edits to the GPS fields - pause auto-fill temporarily
     $(document).on('focus', '[name="gps_latitude"], [name="gps_longitude"]', function() {
@@ -1037,6 +1063,7 @@ foreach ($spotRows as $row) {
             'slaveLng' => $slaveLng,
             'distance' => $gpsDistance,
             'distance3d' => round(sqrt(($gpsDistance * $gpsDistance) + (((float) ($row['coordinate_z_meter'] ?? 0)) ** 2)), 2),
+            'elevation' => round((float) ($row['coordinate_z_meter'] ?? 0), 2),
             'bearing' => rangeBearingDegrees($masterLat, $masterLng, $slaveLat, $slaveLng),
             'status' => $status,
             'rssi' => $rssi,
@@ -1126,14 +1153,199 @@ $poorCount = max(0, count($spotPoints) - $goodCount - $moderateCount);
         min-height: 420px;
     }
 
-    .range-satellite-map {
+    .range-map-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .range-map-shell {
+        position: relative;
         width: 100%;
-        height: clamp(430px, 64vh, 720px);
         min-height: 430px;
+        height: clamp(430px, 64vh, 720px);
         border: 1px solid #d8dee8;
         border-radius: 10px;
         overflow: hidden;
+        background:
+            radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.28), rgba(15, 23, 42, 0) 40%),
+            #0f172a;
+        perspective: 1100px;
+        perspective-origin: 50% 28%;
+        isolation: isolate;
+    }
+
+    .range-map-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        opacity: 0;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.58), rgba(15, 23, 42, 0) 34%);
+        transition: opacity 0.25s ease;
+    }
+
+    .range-map-shell.is-3d::before {
+        opacity: 1;
+    }
+
+    .range-map-plane {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        transform-origin: 50% 58%;
+        transform-style: preserve-3d;
+        transition: transform 0.35s ease, filter 0.35s ease;
+        will-change: transform;
+    }
+
+    .range-map-shell.is-3d .range-map-plane {
+        transform:
+            rotateX(var(--range-map-tilt, 50deg))
+            rotateZ(var(--range-map-bearing, 0deg))
+            scale(1.12);
+        filter: saturate(1.08) contrast(1.06);
+    }
+
+    .range-satellite-map {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
+        overflow: hidden;
         background: #0f172a;
+    }
+
+    .range-map-line-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .range-map-toolbar {
+        position: absolute;
+        top: 14px;
+        left: 14px;
+        z-index: 4;
+        width: min(330px, calc(100% - 28px));
+        padding: 12px;
+        border: 1px solid rgba(226, 232, 240, 0.82);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
+        backdrop-filter: blur(8px);
+    }
+
+    .range-map-toolbar-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        color: #0f172a;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .range-map-toolbar label {
+        display: block;
+        margin-top: 10px;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .range-map-zoom-controls {
+        display: grid;
+        grid-template-columns: 44px 44px 1fr;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .range-map-zoom-controls .btn {
+        min-height: 34px;
+        font-weight: 800;
+    }
+
+    .range-map-toolbar .form-range {
+        margin: 2px 0 0;
+    }
+
+    .range-map-state {
+        position: absolute;
+        right: 14px;
+        bottom: 14px;
+        z-index: 4;
+        max-width: min(360px, calc(100% - 28px));
+        padding: 8px 10px;
+        border-radius: 8px;
+        color: #e2e8f0;
+        background: rgba(15, 23, 42, 0.82);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.24);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.35;
+        pointer-events: none;
+    }
+
+    .range-map-capture-message {
+        display: none;
+        margin-bottom: 12px;
+        padding: 10px 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #1e3a8a;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .range-map-capture-message.is-visible {
+        display: block;
+    }
+
+    .range-map-floating-capture {
+        position: fixed;
+        right: 22px;
+        bottom: 22px;
+        z-index: 1045;
+        display: none;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid rgba(22, 101, 52, 0.3);
+        background: rgba(22, 163, 74, 0.96);
+        color: #ffffff;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.28);
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .range-map-floating-capture.is-visible {
+        display: inline-flex;
+    }
+
+    .range-map-floating-capture small {
+        display: block;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .range-map-floating-capture .btn {
+        color: #166534;
+        background: #ffffff;
+        border-color: #ffffff;
+        font-weight: 800;
     }
 
     .range-map-marker {
@@ -1166,6 +1378,13 @@ $poorCount = max(0, count($spotPoints) - $goodCount - $moderateCount);
         background: rgba(255, 255, 255, 0.92);
         box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
         white-space: nowrap;
+        position: relative;
+        z-index: 20;
+    }
+
+    .range-map-shell.is-3d .range-map-marker,
+    .range-map-shell.is-3d .range-map-distance-label {
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.38);
     }
 
     .spot-beam-legend {
@@ -1187,6 +1406,30 @@ $poorCount = max(0, count($spotPoints) - $goodCount - $moderateCount);
         height: 10px;
         border-radius: 999px;
         display: inline-block;
+    }
+
+    @media (max-width: 767.98px) {
+        .range-map-actions {
+            width: 100%;
+        }
+
+        .range-map-actions .btn,
+        .range-map-actions .badge {
+            flex: 1 1 auto;
+        }
+
+        .range-map-toolbar {
+            top: 10px;
+            left: 10px;
+            width: calc(100% - 20px);
+        }
+
+        .range-map-floating-capture {
+            right: 12px;
+            bottom: 12px;
+            left: 12px;
+            justify-content: space-between;
+        }
     }
 </style>
 
@@ -1228,15 +1471,60 @@ $poorCount = max(0, count($spotPoints) - $goodCount - $moderateCount);
 
     <div class="card">
         <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <h6 class="m-0 font-weight-bold text-primary">Top View Beam Pattern - Satellite Map</h6>
-            <span class="badge bg-secondary"><?php echo count($satellitePoints); ?> GPS link</span>
+            <h6 class="m-0 font-weight-bold text-primary">Top View / 3D Beam Pattern - Satellite Map</h6>
+            <div class="range-map-actions">
+                <div class="btn-group btn-group-sm" role="group" aria-label="Mode tampilan map">
+                    <button type="button" class="btn btn-outline-primary active" id="rangeMapMode2d">2D</button>
+                    <button type="button" class="btn btn-outline-primary" id="rangeMapMode3d">3D</button>
+                </div>
+                <button type="button" class="btn btn-success btn-sm range-map-capture-btn">
+                    <i class="fas fa-camera"></i> Ambil Gambar Map
+                </button>
+                <span class="badge bg-secondary"><?php echo count($satellitePoints); ?> GPS link</span>
+            </div>
         </div>
         <div class="card-body">
-            <div id="rangeSatelliteMap" class="range-satellite-map"></div>
+            <div id="rangeMapCaptureMessage" class="range-map-capture-message" role="status"></div>
+            <div id="rangeMapShell" class="range-map-shell">
+                <div class="range-map-toolbar" data-map-capture-ignore="true">
+                    <div class="range-map-toolbar-title">
+                        <span><i class="fas fa-cube"></i> Kontrol 3D</span>
+                        <span class="badge bg-primary" id="rangeMapModeBadge">2D</span>
+                    </div>
+                    <div class="range-map-zoom-controls" aria-label="Kontrol zoom map">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="rangeMapZoomIn" title="Zoom in">+</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="rangeMapZoomOut" title="Zoom out">-</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="rangeMapFit" title="Tampilkan semua titik">
+                            <i class="fas fa-expand"></i> Fit
+                        </button>
+                    </div>
+                    <label for="rangeMapTilt">Tilt kamera</label>
+                    <input type="range" class="form-range" id="rangeMapTilt" min="0" max="62" step="1" value="48">
+                    <label for="rangeMapBearing">Rotasi pandang</label>
+                    <input type="range" class="form-range" id="rangeMapBearing" min="-45" max="45" step="1" value="0">
+                </div>
+                <div class="range-map-state" id="rangeMapState" data-map-capture-ignore="true">
+                    Mode 2D Satellite. Geser map atau pakai mouse wheel/tombol +/- untuk mengatur posisi gambar.
+                </div>
+                <div id="rangeMapPlane" class="range-map-plane">
+                    <div id="rangeSatelliteMap" class="range-satellite-map"></div>
+                    <canvas id="rangeMapLineOverlay" class="range-map-line-overlay"></canvas>
+                </div>
+            </div>
             <?php if (count($satellitePoints) === 0): ?>
                 <p class="text-muted text-center mb-0 mt-3">Isi GPS master dan GPS slave pada Range Test untuk menampilkan garis jarak di map satelit.</p>
             <?php endif; ?>
         </div>
+    </div>
+
+    <div id="rangeMapFloatingCapture" class="range-map-floating-capture" data-map-capture-ignore="true">
+        <span>
+            Map satelit terlihat
+            <small>Capture mengikuti center, zoom, mode 3D, dan rotasi saat ini.</small>
+        </span>
+        <button type="button" class="btn btn-sm range-map-capture-btn">
+            <i class="fas fa-camera"></i> Ambil
+        </button>
     </div>
 
     <div class="card">
@@ -1283,6 +1571,7 @@ $(function() {
             'Lokasi: ' + $('<div>').text(point.location || '-').html(),
             'Jarak GPS: ' + meterLabel(point.distance),
             'Jarak 3D: ' + meterLabel(point.distance3d),
+            'Elevasi Z: ' + meterLabel(point.elevation),
             'Bearing: ' + (point.bearing || 0) + '&deg;',
             'RSSI: ' + (point.rssi === null ? '-' : point.rssi + ' dBm'),
             'SNR: ' + (point.snr === null ? '-' : point.snr + ' dB'),
@@ -1292,18 +1581,36 @@ $(function() {
 
     function initSatelliteMap() {
         var mapElement = document.getElementById('rangeSatelliteMap');
+        var shell = document.getElementById('rangeMapShell');
+        var lineOverlay = document.getElementById('rangeMapLineOverlay');
+        var mode2dButton = document.getElementById('rangeMapMode2d');
+        var mode3dButton = document.getElementById('rangeMapMode3d');
+        var tiltInput = document.getElementById('rangeMapTilt');
+        var bearingInput = document.getElementById('rangeMapBearing');
+        var zoomInButton = document.getElementById('rangeMapZoomIn');
+        var zoomOutButton = document.getElementById('rangeMapZoomOut');
+        var fitButton = document.getElementById('rangeMapFit');
+        var modeBadge = document.getElementById('rangeMapModeBadge');
+        var stateText = document.getElementById('rangeMapState');
+        var floatingCapture = document.getElementById('rangeMapFloatingCapture');
+        var captureMessage = document.getElementById('rangeMapCaptureMessage');
 
-        if (!mapElement || !window.L) {
+        if (!mapElement || !shell || !window.L) {
             return;
         }
 
         var map = L.map(mapElement, {
-            zoomControl: true,
-            attributionControl: true
+            zoomControl: false,
+            attributionControl: true,
+            maxZoom: 18,
+            scrollWheelZoom: true,
+            wheelPxPerZoomLevel: 90
         });
 
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 20,
+            maxZoom: 18,
+            maxNativeZoom: 18,
+            crossOrigin: true,
             attribution: 'Tiles &copy; Esri'
         }).addTo(map);
 
@@ -1314,6 +1621,116 @@ $(function() {
 
         var bounds = [];
         var masterMarkers = {};
+        var distanceLabelMarkers = [];
+        var distanceLabelData = [];
+
+        function redrawRangeLineOverlay() {
+            if (!lineOverlay) {
+                return;
+            }
+
+            var width = mapElement.clientWidth;
+            var height = mapElement.clientHeight;
+            var ratio = Math.max(1, window.devicePixelRatio || 1);
+
+            if (width <= 0 || height <= 0) {
+                return;
+            }
+
+            if (lineOverlay.width !== Math.round(width * ratio) || lineOverlay.height !== Math.round(height * ratio)) {
+                lineOverlay.width = Math.round(width * ratio);
+                lineOverlay.height = Math.round(height * ratio);
+            }
+
+            lineOverlay.style.width = width + 'px';
+            lineOverlay.style.height = height + 'px';
+
+            var ctx = lineOverlay.getContext('2d');
+            ctx.clearRect(0, 0, lineOverlay.width, lineOverlay.height);
+            ctx.save();
+            ctx.scale(ratio, ratio);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            satellitePoints.forEach(function(point) {
+                var masterPixel = map.latLngToContainerPoint([point.masterLat, point.masterLng]);
+                var slavePixel = map.latLngToContainerPoint([point.slaveLat, point.slaveLng]);
+                var color = point.color || '#1e3c72';
+                var labelPixel = labelOffsetPixel(masterPixel, slavePixel, 20);
+
+                ctx.beginPath();
+                ctx.moveTo(masterPixel.x, masterPixel.y);
+                ctx.lineTo(slavePixel.x, slavePixel.y);
+                ctx.strokeStyle = 'rgba(15,23,42,0.56)';
+                ctx.lineWidth = 4.5;
+                ctx.shadowColor = 'rgba(255,255,255,0.28)';
+                ctx.shadowBlur = 2;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(masterPixel.x, masterPixel.y);
+                ctx.lineTo(slavePixel.x, slavePixel.y);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2.4;
+                ctx.shadowBlur = 0;
+                ctx.stroke();
+
+                ctx.save();
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.beginPath();
+                ctx.ellipse(labelPixel.x, labelPixel.y, 48, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                [
+                    { pixel: masterPixel, radius: 4.8, fill: '#1e3c72' },
+                    { pixel: slavePixel, radius: 4.2, fill: color }
+                ].forEach(function(endpoint) {
+                    ctx.beginPath();
+                    ctx.arc(endpoint.pixel.x, endpoint.pixel.y, endpoint.radius + 1.8, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.arc(endpoint.pixel.x, endpoint.pixel.y, endpoint.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = endpoint.fill;
+                    ctx.fill();
+                });
+            });
+
+            ctx.restore();
+        }
+
+        function labelOffsetLatLng(masterLatLng, slaveLatLng, offsetPixels) {
+            var masterPixel = map.latLngToContainerPoint(masterLatLng);
+            var slavePixel = map.latLngToContainerPoint(slaveLatLng);
+            var offsetPixel = labelOffsetPixel(masterPixel, slavePixel, offsetPixels);
+
+            return map.containerPointToLatLng(offsetPixel);
+        }
+
+        function labelOffsetPixel(masterPixel, slavePixel, offsetPixels) {
+            var midX = (masterPixel.x + slavePixel.x) / 2;
+            var midY = (masterPixel.y + slavePixel.y) / 2;
+            var dx = slavePixel.x - masterPixel.x;
+            var dy = slavePixel.y - masterPixel.y;
+            var length = Math.sqrt((dx * dx) + (dy * dy)) || 1;
+            var normalX = -dy / length;
+            var normalY = dx / length;
+
+            return L.point(midX + (normalX * offsetPixels), midY + (normalY * offsetPixels));
+        }
+
+        function fitSatelliteBounds() {
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, {
+                    padding: [32, 32],
+                    maxZoom: 18
+                });
+            } else {
+                map.setView([satelliteDefaultCenter.lat || -6.2088, satelliteDefaultCenter.lng || 106.8456], 17);
+            }
+        }
 
         satellitePoints.forEach(function(point) {
             var master = [point.masterLat, point.masterLng];
@@ -1358,36 +1775,271 @@ $(function() {
                 }).addTo(map);
             }
 
-            var middle = [
-                (point.masterLat + point.slaveLat) / 2,
-                (point.masterLng + point.slaveLng) / 2
-            ];
-
-            L.marker(middle, {
-                interactive: false,
-                icon: L.divIcon({
-                    className: '',
-                    html: '<div class="range-map-distance-label">' + meterLabel(point.distance) + '</div>',
-                    iconSize: [90, 24],
-                    iconAnchor: [45, 12]
-                })
-            }).addTo(map);
+            distanceLabelData.push({
+                point: point,
+                master: master,
+                slave: slave
+            });
 
             bounds.push(master, slave);
         });
 
-        if (bounds.length > 0) {
-            map.fitBounds(bounds, {
-                padding: [32, 32],
-                maxZoom: 19
+        fitSatelliteBounds();
+
+        distanceLabelData.forEach(function(item) {
+            var distanceLabelMarker = L.marker(labelOffsetLatLng(item.master, item.slave, 20), {
+                interactive: false,
+                icon: L.divIcon({
+                    className: '',
+                    html: '<div class="range-map-distance-label">' + meterLabel(item.point.distance) + '</div>',
+                    iconSize: [90, 24],
+                    iconAnchor: [45, 12]
+                }),
+                zIndexOffset: 1200
+            }).addTo(map);
+
+            distanceLabelMarkers.push({
+                marker: distanceLabelMarker,
+                master: item.master,
+                slave: item.slave
             });
-        } else {
-            map.setView([satelliteDefaultCenter.lat || -6.2088, satelliteDefaultCenter.lng || 106.8456], 17);
-        }
+        });
 
         setTimeout(function() {
             map.invalidateSize();
+            updateMap3dState();
+            redrawRangeLineOverlay();
         }, 250);
+
+        var map3d = {
+            enabled: false,
+            tilt: Number(tiltInput && tiltInput.value) || 48,
+            bearing: Number(bearingInput && bearingInput.value) || 0
+        };
+        var mapVisibleInViewport = false;
+
+        function formatCenter() {
+            var center = map.getCenter();
+            return center.lat.toFixed(6) + ', ' + center.lng.toFixed(6);
+        }
+
+        function updateMap3dState() {
+            if (map.getZoom() > 18) {
+                map.setZoom(18);
+                return;
+            }
+
+            shell.style.setProperty('--range-map-tilt', map3d.tilt + 'deg');
+            shell.style.setProperty('--range-map-bearing', map3d.bearing + 'deg');
+            shell.classList.toggle('is-3d', map3d.enabled);
+
+            if (mode2dButton) {
+                mode2dButton.classList.toggle('active', !map3d.enabled);
+            }
+
+            if (mode3dButton) {
+                mode3dButton.classList.toggle('active', map3d.enabled);
+            }
+
+            if (modeBadge) {
+                modeBadge.textContent = map3d.enabled ? '3D' : '2D';
+                modeBadge.className = 'badge ' + (map3d.enabled ? 'bg-success' : 'bg-primary');
+            }
+
+            if (stateText) {
+                stateText.textContent = (map3d.enabled ? 'Mode 3D Satellite' : 'Mode 2D Satellite')
+                    + ' | Center ' + formatCenter()
+                    + ' | Zoom ' + map.getZoom()
+                    + (map3d.enabled ? ' | Tilt ' + map3d.tilt + 'deg | Rotasi ' + map3d.bearing + 'deg' : '')
+                    + ' | Mouse wheel aktif, batas aman zoom 18';
+            }
+        }
+
+        function setMap3dMode(enabled) {
+            map3d.enabled = enabled;
+            updateMap3dState();
+
+            setTimeout(function() {
+                map.invalidateSize();
+            }, 180);
+        }
+
+        function slugifyFilename(value) {
+            return String(value || 'range-satellite-map')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '') || 'range-satellite-map';
+        }
+
+        function showCaptureMessage(message, type) {
+            if (!captureMessage) {
+                return;
+            }
+
+            captureMessage.textContent = message;
+            captureMessage.classList.add('is-visible');
+            captureMessage.style.borderColor = type === 'error' ? '#fecaca' : '#bfdbfe';
+            captureMessage.style.background = type === 'error' ? '#fef2f2' : '#eff6ff';
+            captureMessage.style.color = type === 'error' ? '#991b1b' : '#1e3a8a';
+
+            clearTimeout(showCaptureMessage.timer);
+            showCaptureMessage.timer = setTimeout(function() {
+                captureMessage.classList.remove('is-visible');
+            }, 4200);
+        }
+
+        function setCaptureLoading(button, isLoading) {
+            if (!button) {
+                return;
+            }
+
+            if (isLoading) {
+                button.dataset.originalHtml = button.innerHTML;
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengambil...';
+            } else {
+                button.disabled = false;
+                button.innerHTML = button.dataset.originalHtml || '<i class="fas fa-camera"></i> Ambil';
+            }
+        }
+
+        function captureCurrentMap(button) {
+            if (!window.html2canvas) {
+                showCaptureMessage('Library html2canvas belum ter-load. Pastikan koneksi CDN aktif, lalu refresh halaman.', 'error');
+                return;
+            }
+
+            map.closePopup();
+            map.invalidateSize();
+            updateMap3dState();
+            redrawRangeLineOverlay();
+            setCaptureLoading(button, true);
+
+            setTimeout(function() {
+                window.html2canvas(shell, {
+                    backgroundColor: '#0f172a',
+                    useCORS: true,
+                    allowTaint: false,
+                    logging: false,
+                    scale: Math.min(2, window.devicePixelRatio || 1),
+                    ignoreElements: function(element) {
+                        return element.hasAttribute && element.hasAttribute('data-map-capture-ignore');
+                    }
+                }).then(function(canvas) {
+                    var center = map.getCenter();
+                    var filename = slugifyFilename([
+                        'range-satellite-map',
+                        map3d.enabled ? '3d' : '2d',
+                        'z' + map.getZoom(),
+                        center.lat.toFixed(5),
+                        center.lng.toFixed(5),
+                        new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+                    ].join('-'));
+                    var link = document.createElement('a');
+                    link.href = canvas.toDataURL('image/png');
+                    link.download = filename + '.png';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    showCaptureMessage('Gambar map berhasil diunduh sesuai posisi center, zoom, tilt, dan rotasi saat ini.', 'success');
+                }).catch(function(error) {
+                    showCaptureMessage('Gagal mengambil gambar map. Coba tunggu tile satelit selesai loading, lalu ulangi. Detail: ' + (error && error.message ? error.message : 'capture error'), 'error');
+                }).finally(function() {
+                    setCaptureLoading(button, false);
+                });
+            }, 250);
+        }
+
+        function updateFloatingCapture() {
+            if (!floatingCapture) {
+                return;
+            }
+
+            floatingCapture.classList.toggle('is-visible', mapVisibleInViewport && window.scrollY > 80);
+        }
+
+        if (mode2dButton) {
+            mode2dButton.addEventListener('click', function() {
+                setMap3dMode(false);
+            });
+        }
+
+        if (mode3dButton) {
+            mode3dButton.addEventListener('click', function() {
+                setMap3dMode(true);
+            });
+        }
+
+        if (tiltInput) {
+            tiltInput.addEventListener('input', function() {
+                map3d.tilt = Number(tiltInput.value) || 0;
+                setMap3dMode(map3d.tilt > 0);
+            });
+        }
+
+        if (bearingInput) {
+            bearingInput.addEventListener('input', function() {
+                map3d.bearing = Number(bearingInput.value) || 0;
+                setMap3dMode(true);
+            });
+        }
+
+        if (zoomInButton) {
+            zoomInButton.addEventListener('click', function() {
+                map.zoomIn();
+            });
+        }
+
+        if (zoomOutButton) {
+            zoomOutButton.addEventListener('click', function() {
+                map.zoomOut();
+            });
+        }
+
+        if (fitButton) {
+            fitButton.addEventListener('click', function() {
+                fitSatelliteBounds();
+            });
+        }
+
+        document.querySelectorAll('.range-map-capture-btn').forEach(function(button) {
+            button.addEventListener('click', function() {
+                captureCurrentMap(button);
+            });
+        });
+
+        map.on('move zoom resize moveend zoomend', function() {
+            updateMap3dState();
+            redrawRangeLineOverlay();
+            distanceLabelMarkers.forEach(function(item) {
+                item.marker.setLatLng(labelOffsetLatLng(item.master, item.slave, 20));
+            });
+        });
+        updateMap3dState();
+        redrawRangeLineOverlay();
+
+        if ('IntersectionObserver' in window) {
+            new IntersectionObserver(function(entries) {
+                mapVisibleInViewport = entries.some(function(entry) {
+                    return entry.isIntersecting && entry.intersectionRatio > 0.08;
+                });
+                updateFloatingCapture();
+            }, {
+                threshold: [0, 0.08, 0.25],
+                rootMargin: '0px 0px -10% 0px'
+            }).observe(shell);
+        } else {
+            var checkMapVisibility = function() {
+                var rect = shell.getBoundingClientRect();
+                mapVisibleInViewport = rect.top < window.innerHeight && rect.bottom > 0;
+                updateFloatingCapture();
+            };
+            window.addEventListener('scroll', checkMapVisibility, { passive: true });
+            window.addEventListener('resize', checkMapVisibility);
+            checkMapVisibility();
+        }
+
+        window.addEventListener('scroll', updateFloatingCapture, { passive: true });
     }
 
     function parseGps(value, min, max) {

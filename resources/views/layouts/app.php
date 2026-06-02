@@ -15,6 +15,7 @@
     <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script>
         if (window.Chart) {
             Chart.defaults.color = '#4b5563';
@@ -623,9 +624,9 @@
                 <div class="d-flex align-items-center">
                     <span class="me-3">
                         <i class="fas fa-user-circle"></i>
-                        <?php echo $_SESSION['full_name'] ?? $_SESSION['username']; ?>
+                        <?php echo $_SESSION['full_name'] ?? ($_SESSION['username'] ?? 'User'); ?>
                     </span>
-                    <span class="badge bg-<?php echo $_SESSION['user_role'] === 'admin' ? 'danger' : 'info'; ?>">
+                    <span class="badge bg-<?php echo ($_SESSION['user_role'] ?? '') === 'admin' ? 'danger' : 'info'; ?>">
                         <?php echo strtoupper($_SESSION['user_role'] ?? 'user'); ?>
                     </span>
                 </div>

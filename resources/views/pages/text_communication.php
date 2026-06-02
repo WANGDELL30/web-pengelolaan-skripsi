@@ -797,7 +797,12 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="message-panel">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <h5 class="mb-0"><i class="fas fa-table"></i> Log Pengiriman Pesan</h5>
-        <span class="text-muted small">50 data terbaru</span>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <a class="btn btn-success btn-sm" href="export_excel.php?table=text_message_logs">
+                <i class="fas fa-file-excel"></i> Export Excel 365
+            </a>
+            <span class="text-muted small">50 data terbaru</span>
+        </div>
     </div>
     <div class="table-responsive">
         <table class="table table-striped align-middle">
@@ -838,7 +843,12 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="message-panel">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <h5 class="mb-0"><i class="fas fa-inbox"></i> Log Pesan Masuk dari Slave</h5>
-        <span class="text-muted small">50 data terbaru</span>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <a class="btn btn-success btn-sm" href="export_excel.php?table=text_message_inbox_logs">
+                <i class="fas fa-file-excel"></i> Export Excel 365
+            </a>
+            <span class="text-muted small">50 data terbaru</span>
+        </div>
     </div>
     <div class="table-responsive">
         <table class="table table-striped align-middle">
