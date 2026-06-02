@@ -129,7 +129,12 @@ $metricValues = array_map(function ($row) {
 </div>
 
 <div class="content-section">
-    <h4 class="mb-4"><i class="fas fa-list-check"></i> Key Metrics</h4>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+        <h4 class="mb-0"><i class="fas fa-list-check"></i> Key Metrics</h4>
+        <a class="btn btn-success btn-sm" href="export_excel.php?table=analysis_key_metrics">
+            <i class="fas fa-file-excel"></i> Export Excel 365
+        </a>
+    </div>
     <div class="table-responsive">
         <table class="table table-bordered table-hover">
             <thead>
