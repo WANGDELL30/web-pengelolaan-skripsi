@@ -64,6 +64,15 @@ enum iperf_type
 #define IPERF_TYPE                      IPERF_UDP_SERVER
 #endif
 
+#ifndef IPERF_AUTOSTART
+/**
+ * Set ke 0 untuk menonaktifkan iperf server saat boot. Sangat membantu kalau
+ * slave hanya dipakai sebagai sumber GPS + CoT lewat HaLow, karena iperf yang
+ * standby tetap menyita airtime dan membuat polling HTTP terasa lambat.
+ */
+#define IPERF_AUTOSTART                 0
+#endif
+
 #ifndef IPERF_SERVER_IP
 /** IP address of server to connect to when in client mode. */
 #define IPERF_SERVER_IP                 "192.168.1.1"
@@ -144,7 +153,7 @@ enum iperf_type
 
 #ifndef ATAK_COT_INTERVAL_MS
 /** How often to send a CoT message to ATAK. */
-#define ATAK_COT_INTERVAL_MS            3000
+#define ATAK_COT_INTERVAL_MS            5000
 #endif
 
 #ifndef ATAK_COT_STALE_SEC
@@ -1818,7 +1827,7 @@ static const char status_web_index_html[] =
     "<script>"
     "async function refresh(){"
     "const controller=new AbortController();"
-    "const timer=setTimeout(()=>controller.abort(),4000);"
+    "const timer=setTimeout(()=>controller.abort(),8000);"
     "try{"
     "const res=await fetch('/api/status',{cache:'no-store',signal:controller.signal});"
     "const data=await res.json();"
@@ -1896,7 +1905,11 @@ static int build_status_json(char *buffer, size_t buffer_len)
     char atak_target[32] = "";
     int32_t rssi_dbm = mmwlan_get_rssi();
     const char *link_state = web_link_state_to_string(mmipal_get_link_state());
+#if IPERF_AUTOSTART
     const char *iperf_mode = iperf_mode_to_string(IPERF_TYPE);
+#else
+    const char *iperf_mode = "disabled";
+#endif
     const char *gps_state = "disabled";
     bool gps_nmea_seen = false;
     bool gps_fix_valid = false;
@@ -3032,10 +3045,10 @@ static void start_status_web_server(void)
     config.server_port = STATUS_WEB_PORT;
     config.stack_size = 12288;
     config.max_uri_handlers = 12;
-    config.max_open_sockets = 4;
+    config.max_open_sockets = 7;
     config.lru_purge_enable = true;
-    config.recv_wait_timeout = 5;
-    config.send_wait_timeout = 5;
+    config.recv_wait_timeout = 10;
+    config.send_wait_timeout = 10;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
 #if TEXT_MESSAGE_ENABLE
@@ -3308,6 +3321,7 @@ void app_main(void)
     iperf_command_sent_time_ms = mmosal_get_time_ms();
     iperf_command_received_time_ms = iperf_command_sent_time_ms;
 
+#if IPERF_AUTOSTART
     switch (iperf_mode)
     {
     case IPERF_TCP_SERVER:
@@ -3326,6 +3340,10 @@ void app_main(void)
         start_tcp_client();
         break;
     }
+#else
+    (void)iperf_mode;
+    printf("iperf autostart disabled (IPERF_AUTOSTART=0). HaLow airtime fokus untuk GPS+CoT+HTTP.\n");
+#endif
 
     while (true)
     {

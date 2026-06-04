@@ -347,12 +347,17 @@ if (!function_exists('testPageBuildCharts')) {
 
 $success = null;
 $error = null;
+$canManageProject = canManageProject();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_test_page'] ?? '') === $pageConfig['table']) {
     $action = $_POST['_test_action'] ?? 'create';
     $recordId = (int) ($_POST['_test_record_id'] ?? 0);
 
     try {
+        if (!$canManageProject) {
+            throw new RuntimeException('Akses ditolak. Viewer hanya bisa melihat data.');
+        }
+
         if ($action === 'delete') {
             if ($recordId <= 0) {
                 throw new RuntimeException('ID data tidak valid.');
@@ -434,61 +439,74 @@ $detailLabels['updated_at'] = 'Updated At';
     <?php endif; ?>
 
     <div class="row">
-        <div class="col-xl-8 mb-4">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h6 class="mb-0"><i class="fas fa-edit"></i> Input Data</h6>
-                </div>
-                <div class="card-body">
-                    <form method="POST">
-                        <input type="hidden" name="_test_page" value="<?php echo htmlspecialchars($pageConfig['table']); ?>">
-                        <input type="hidden" name="_test_action" value="create">
-                        <div class="row">
-                            <?php foreach ($pageConfig['fields'] as $field): ?>
-                                <?php
-                                $type = $field['type'] ?? 'text';
-                                $name = $field['name'];
-                                $value = $_POST[$name] ?? ($field['default'] ?? '');
-                                $col = $field['col'] ?? ($type === 'textarea' ? 'col-12' : 'col-md-6');
-                                ?>
-                                <div class="<?php echo $col; ?> mb-3">
-                                    <label class="form-label"><?php echo htmlspecialchars($field['label']); ?></label>
+        <?php if ($canManageProject): ?>
+            <div class="col-xl-8 mb-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="fas fa-edit"></i> Input Data</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <input type="hidden" name="_test_page" value="<?php echo htmlspecialchars($pageConfig['table']); ?>">
+                            <input type="hidden" name="_test_action" value="create">
+                            <div class="row">
+                                <?php foreach ($pageConfig['fields'] as $field): ?>
+                                    <?php
+                                    $type = $field['type'] ?? 'text';
+                                    $name = $field['name'];
+                                    $value = $_POST[$name] ?? ($field['default'] ?? '');
+                                    $col = $field['col'] ?? ($type === 'textarea' ? 'col-12' : 'col-md-6');
+                                    ?>
+                                    <div class="<?php echo $col; ?> mb-3">
+                                        <label class="form-label"><?php echo htmlspecialchars($field['label']); ?></label>
 
-                                    <?php if ($type === 'select'): ?>
-                                        <select class="form-select" name="<?php echo htmlspecialchars($name); ?>" <?php echo !empty($field['required']) ? 'required' : ''; ?>>
-                                            <option value="">Pilih</option>
-                                            <?php foreach ($field['options'] as $optionValue => $optionLabel): ?>
-                                                <?php if (is_int($optionValue)) $optionValue = $optionLabel; ?>
-                                                <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo (string) $value === (string) $optionValue ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($optionLabel); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    <?php elseif ($type === 'textarea'): ?>
-                                        <textarea class="form-control" name="<?php echo htmlspecialchars($name); ?>" rows="<?php echo $field['rows'] ?? 3; ?>"><?php echo htmlspecialchars((string) $value); ?></textarea>
-                                    <?php else: ?>
-                                        <input
-                                            type="<?php echo htmlspecialchars($type); ?>"
-                                            class="form-control"
-                                            name="<?php echo htmlspecialchars($name); ?>"
-                                            value="<?php echo htmlspecialchars((string) $value); ?>"
-                                            <?php echo isset($field['step']) ? 'step="' . htmlspecialchars((string) $field['step']) . '"' : ''; ?>
-                                            <?php echo isset($field['min']) ? 'min="' . htmlspecialchars((string) $field['min']) . '"' : ''; ?>
-                                            <?php echo isset($field['max']) ? 'max="' . htmlspecialchars((string) $field['max']) . '"' : ''; ?>
-                                            <?php echo !empty($field['required']) ? 'required' : ''; ?>
-                                        >
-                                    <?php endif; ?>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
+                                        <?php if ($type === 'select'): ?>
+                                            <select class="form-select" name="<?php echo htmlspecialchars($name); ?>" <?php echo !empty($field['required']) ? 'required' : ''; ?>>
+                                                <option value="">Pilih</option>
+                                                <?php foreach ($field['options'] as $optionValue => $optionLabel): ?>
+                                                    <?php if (is_int($optionValue)) $optionValue = $optionLabel; ?>
+                                                    <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo (string) $value === (string) $optionValue ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($optionLabel); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        <?php elseif ($type === 'textarea'): ?>
+                                            <textarea class="form-control" name="<?php echo htmlspecialchars($name); ?>" rows="<?php echo $field['rows'] ?? 3; ?>"><?php echo htmlspecialchars((string) $value); ?></textarea>
+                                        <?php else: ?>
+                                            <input
+                                                type="<?php echo htmlspecialchars($type); ?>"
+                                                class="form-control"
+                                                name="<?php echo htmlspecialchars($name); ?>"
+                                                value="<?php echo htmlspecialchars((string) $value); ?>"
+                                                <?php echo isset($field['step']) ? 'step="' . htmlspecialchars((string) $field['step']) . '"' : ''; ?>
+                                                <?php echo isset($field['min']) ? 'min="' . htmlspecialchars((string) $field['min']) . '"' : ''; ?>
+                                                <?php echo isset($field['max']) ? 'max="' . htmlspecialchars((string) $field['max']) . '"' : ''; ?>
+                                                <?php echo !empty($field['required']) ? 'required' : ''; ?>
+                                            >
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
 
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Simpan Data
-                        </button>
-                    </form>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Simpan Data
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </div>
+        <?php else: ?>
+            <div class="col-xl-8 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-secondary text-white">
+                        <h6 class="mb-0"><i class="fas fa-eye"></i> Mode Viewer</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-0">Form input, edit, dan hapus dinonaktifkan untuk role ini. Data tetap bisa dilihat melalui tabel, detail, grafik, dan export.</p>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
 
         <div class="col-xl-4 mb-4">
             <div class="card h-100">
@@ -618,12 +636,14 @@ $detailLabels['updated_at'] = 'Updated At';
                             <button type="button" class="btn btn-outline-primary btn-sm test-view-btn" data-record-id="<?php echo (int) $row['id']; ?>" title="Lihat detail">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button type="button" class="btn btn-outline-warning btn-sm test-edit-btn" data-record-id="<?php echo (int) $row['id']; ?>" title="Edit data">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button type="button" class="btn btn-outline-danger btn-sm test-delete-btn" data-record-id="<?php echo (int) $row['id']; ?>" title="Hapus data">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            <?php if ($canManageProject): ?>
+                                <button type="button" class="btn btn-outline-warning btn-sm test-edit-btn" data-record-id="<?php echo (int) $row['id']; ?>" title="Edit data">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm test-delete-btn" data-record-id="<?php echo (int) $row['id']; ?>" title="Hapus data">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -653,6 +673,7 @@ $detailLabels['updated_at'] = 'Updated At';
     </div>
 </div>
 
+<?php if ($canManageProject): ?>
 <div class="modal fade" id="<?php echo $chartBaseId; ?>EditModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -737,14 +758,17 @@ $detailLabels['updated_at'] = 'Updated At';
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <script>
 $(function() {
     var testPageRows = <?php echo json_encode($rowMap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
     var testPageLabels = <?php echo json_encode($detailLabels, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
     var viewModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('<?php echo $chartBaseId; ?>ViewModal'));
+    <?php if ($canManageProject): ?>
     var editModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('<?php echo $chartBaseId; ?>EditModal'));
     var deleteModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('<?php echo $chartBaseId; ?>DeleteModal'));
+    <?php endif; ?>
 
     function getRow(recordId) {
         return testPageRows[String(recordId)] || null;
@@ -771,6 +795,7 @@ $(function() {
         viewModal.show();
     });
 
+    <?php if ($canManageProject): ?>
     $(document).on('click', '.test-edit-btn', function() {
         var row = getRow($(this).data('record-id'));
         if (!row) return;
@@ -790,6 +815,7 @@ $(function() {
         $('#<?php echo $chartBaseId; ?>DeleteRecordLabel').text('#' + recordId);
         deleteModal.show();
     });
+    <?php endif; ?>
 
     if ($.fn.DataTable) {
         $('.test-data-table').DataTable({

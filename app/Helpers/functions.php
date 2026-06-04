@@ -174,6 +174,27 @@ function checkRole($requiredRole) {
 }
 
 /**
+ * Get current user role
+ */
+function currentUserRole() {
+    return $_SESSION['user_role'] ?? null;
+}
+
+/**
+ * Check read-only viewer state
+ */
+function isViewerRole() {
+    return currentUserRole() === 'viewer';
+}
+
+/**
+ * Roles allowed to create, update, delete, send commands, or change device config.
+ */
+function canManageProject() {
+    return isLoggedIn() && !isViewerRole();
+}
+
+/**
  * Sanitize input
  */
 function sanitize($data) {

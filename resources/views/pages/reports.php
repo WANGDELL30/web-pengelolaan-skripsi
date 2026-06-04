@@ -1,12 +1,17 @@
 <?php
 $success = null;
 $error = null;
+$canManageProject = canManageProject();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_report_form'] ?? '') === 'generated_reports') {
     $action = $_POST['_report_action'] ?? 'create';
     $recordId = (int) ($_POST['id'] ?? 0);
 
     try {
+        if (!$canManageProject) {
+            throw new RuntimeException('Akses ditolak. Viewer hanya bisa melihat data laporan.');
+        }
+
         if ($action === 'delete') {
             if ($recordId <= 0) {
                 throw new RuntimeException('ID laporan tidak valid.');
@@ -109,6 +114,7 @@ foreach ($reports as $report) {
         </div>
     <?php endif; ?>
 
+    <?php if ($canManageProject): ?>
     <div class="card">
         <div class="card-header bg-primary text-white">
             <h6 class="mb-0"><i class="fas fa-plus"></i> Buat Record Laporan</h6>
@@ -167,6 +173,16 @@ foreach ($reports as $report) {
             </form>
         </div>
     </div>
+    <?php else: ?>
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="mb-0"><i class="fas fa-eye"></i> Mode Viewer</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-0">Pembuatan, edit, dan hapus laporan dinonaktifkan untuk role ini. Daftar, grafik, detail, dan export tetap tersedia.</p>
+            </div>
+        </div>
+    <?php endif; ?>
 </div>
 
 <div class="content-section">
@@ -245,12 +261,14 @@ foreach ($reports as $report) {
                             <button type="button" class="btn btn-outline-primary btn-sm report-view-btn" data-record-id="<?php echo (int) $report['id']; ?>" title="Lihat detail">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button type="button" class="btn btn-outline-warning btn-sm report-edit-btn" data-record-id="<?php echo (int) $report['id']; ?>" title="Edit laporan">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button type="button" class="btn btn-outline-danger btn-sm report-delete-btn" data-record-id="<?php echo (int) $report['id']; ?>" title="Hapus laporan">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            <?php if ($canManageProject): ?>
+                                <button type="button" class="btn btn-outline-warning btn-sm report-edit-btn" data-record-id="<?php echo (int) $report['id']; ?>" title="Edit laporan">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm report-delete-btn" data-record-id="<?php echo (int) $report['id']; ?>" title="Hapus laporan">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -280,6 +298,7 @@ foreach ($reports as $report) {
     </div>
 </div>
 
+<?php if ($canManageProject): ?>
 <div class="modal fade" id="reportEditModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -372,6 +391,7 @@ foreach ($reports as $report) {
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <script>
 $(function() {
@@ -417,6 +437,7 @@ $(function() {
         bootstrap.Modal.getOrCreateInstance(document.getElementById('reportViewModal')).show();
     });
 
+    <?php if ($canManageProject): ?>
     $(document).on('click', '.report-edit-btn', function() {
         var row = getReportRow($(this).data('record-id'));
         if (!row) return;
@@ -445,6 +466,7 @@ $(function() {
         $('#reportDeleteLabel').text('#' + recordId);
         bootstrap.Modal.getOrCreateInstance(document.getElementById('reportDeleteModal')).show();
     });
+    <?php endif; ?>
 
     if ($.fn.DataTable) {
         $('.report-data-table').DataTable({

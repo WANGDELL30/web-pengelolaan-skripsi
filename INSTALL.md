@@ -122,6 +122,10 @@ http://wifitest.local/
 - Username: `admin`
 - Password: `admin123`
 
+**Default Viewer Account:**
+- Username: `viewer`
+- Password: `admin123`
+
 **Demo Accounts (from seed data):**
 - Operator: `operator1` / `admin123`
 - Viewer: `viewer1` / `admin123`
