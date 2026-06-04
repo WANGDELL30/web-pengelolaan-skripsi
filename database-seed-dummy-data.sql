@@ -6,6 +6,7 @@ USE wifi_holow_testing;
 -- Insert sample users
 INSERT INTO users (username, password, role, full_name, email, notes) VALUES
 ('admin', '$2y$10$nTEDKXvfEWtCbiXSFHmBNOc6kqfr0fibJTTF47Kwtli4RYexCgDTW', 'admin', 'System Admin', 'admin@wifiholow.test', 'Administrator utama'),
+('viewer', '$2y$10$nTEDKXvfEWtCbiXSFHmBNOc6kqfr0fibJTTF47Kwtli4RYexCgDTW', 'viewer', 'Read Only Viewer', 'viewer@wifiholow.test', 'User viewer read-only'),
 ('operator1', '$2y$10$nTEDKXvfEWtCbiXSFHmBNOc6kqfr0fibJTTF47Kwtli4RYexCgDTW', 'operator', 'John Operator', 'john@wifiholow.test', 'Operator lapangan'),
 ('viewer1', '$2y$10$nTEDKXvfEWtCbiXSFHmBNOc6kqfr0fibJTTF47Kwtli4RYexCgDTW', 'viewer', 'Jane Viewer', 'jane@wifiholow.test', 'User pembaca')
 ON DUPLICATE KEY UPDATE

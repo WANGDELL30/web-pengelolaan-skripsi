@@ -72,6 +72,7 @@ $pageConfig = [
     ],
 ];
 
+$canManageProject = canManageProject();
 ?>
 
 <div class="content-section">
@@ -83,6 +84,7 @@ $pageConfig = [
         <span class="badge bg-primary">API: slave_command_api.php</span>
     </div>
 
+    <?php if ($canManageProject): ?>
     <div class="row">
         <div class="col-xl-7 mb-4">
             <div class="card h-100">
@@ -94,7 +96,7 @@ $pageConfig = [
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">IP Slave</label>
-                                <input type="text" class="form-control" name="slave_ip" value="192.168.1.113" placeholder="192.168.1.113" required>
+                                <input type="text" class="form-control" name="slave_ip" value="192.168.1.112" placeholder="192.168.1.112" required>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="form-label">UDP Port</label>
@@ -165,8 +167,19 @@ $pageConfig = [
             </div>
         </div>
     </div>
+    <?php else: ?>
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="mb-0"><i class="fas fa-eye"></i> Mode Viewer</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-0">Pengiriman command live ke slave dinonaktifkan untuk role ini. Data hasil command dan grafik pengujian tetap tersedia di bagian bawah.</p>
+            </div>
+        </div>
+    <?php endif; ?>
 </div>
 
+<?php if ($canManageProject): ?>
 <script>
 $(function() {
     var $form = $('#slaveCommandForm');
@@ -243,6 +256,7 @@ $(function() {
     });
 });
 </script>
+<?php endif; ?>
 
 <?php
 include __DIR__ . '/_test_page.php';

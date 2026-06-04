@@ -1,0 +1,16 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    RewriteRule ^$ public/index.php [L,QSA]
+    RewriteRule ^index\.php$ public/index.php [L,QSA]
+
+    RewriteRule ^(css|js|img|images|uploads|reports)/(.*)$ public/$1/$2 [L,NC,QSA]
+    RewriteRule ^(export_excel|master_api|master_proxy|slave_command_api|text_message_inbox)\.php$ public/$1.php [L,NC,QSA]
+
+    RewriteCond %{REQUEST_URI} !^/public/ [NC]
+    RewriteRule ^(.+)$ public/index.php?url=$1 [QSA,L]
+</IfModule>

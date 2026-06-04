@@ -4,6 +4,7 @@ $masterConfigPath = '/cgi-bin/luci/admin/status/overview';
 $masterConfigUrl = rtrim($masterConfigBaseUrl, '/') . $masterConfigPath;
 $masterConfigRootUrl = rtrim($masterConfigBaseUrl, '/') . '/';
 $masterConfigProxyUrl = 'master_proxy.php?path=' . rawurlencode($masterConfigPath);
+$canManageProject = canManageProject();
 ?>
 
 <style>
@@ -283,9 +284,13 @@ $masterConfigProxyUrl = 'master_proxy.php?path=' . rawurlencode($masterConfigPat
             <h4 class="mb-1"><i class="fas fa-sliders"></i> Master Web Configuration</h4>
             <p class="text-muted mb-0">Akses panel konfigurasi WiFi HaLow Master di jaringan lokal.</p>
         </div>
-        <a class="btn btn-primary" href="<?php echo htmlspecialchars($masterConfigUrl); ?>" target="_blank" rel="noopener">
-            <i class="fas fa-up-right-from-square"></i> Buka Tab Baru
-        </a>
+        <?php if ($canManageProject): ?>
+            <a class="btn btn-primary" href="<?php echo htmlspecialchars($masterConfigUrl); ?>" target="_blank" rel="noopener">
+                <i class="fas fa-up-right-from-square"></i> Buka Tab Baru
+            </a>
+        <?php else: ?>
+            <span class="badge bg-secondary"><i class="fas fa-eye"></i> Mode Viewer</span>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -342,6 +347,7 @@ $masterConfigProxyUrl = 'master_proxy.php?path=' . rawurlencode($masterConfigPat
     </div>
 </div>
 
+<?php if ($canManageProject): ?>
 <div class="master-config-panel">
     <div class="master-config-toolbar">
         <div class="master-config-address">
@@ -392,6 +398,19 @@ $masterConfigProxyUrl = 'master_proxy.php?path=' . rawurlencode($masterConfigPat
         Panel ditampilkan melalui proxy lokal karena firmware LuCI memakai proteksi X-Frame-Options. Jika login atau halaman tertentu tetap ditolak, gunakan tombol Tab untuk membuka panel langsung.
     </div>
 </div>
+<?php else: ?>
+<div class="master-config-panel">
+    <div class="master-config-toolbar">
+        <div class="master-config-address">
+            <i class="fas fa-eye"></i>
+            <span>Mode Viewer</span>
+        </div>
+    </div>
+    <div class="p-4">
+        <p class="text-muted mb-0">Panel konfigurasi LuCI hanya tersedia untuk admin. Role viewer tetap bisa melihat ringkasan status master pada kartu analytics di atas.</p>
+    </div>
+</div>
+<?php endif; ?>
 
 <script>
 $(function() {

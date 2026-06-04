@@ -134,6 +134,11 @@ switch ($page) {
         $title = 'Generated Reports';
         $content = renderView(__DIR__ . '/../resources/views/pages/reports.php');
         break;
+
+    case 'users':
+        $title = 'User Management';
+        $content = renderView(__DIR__ . '/../resources/views/pages/users.php');
+        break;
     
     default:
         $title = 'Dashboard';

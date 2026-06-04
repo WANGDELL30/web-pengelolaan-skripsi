@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+config/database.local.php
 
 vendor/
 node_modules/
@@ -9,6 +10,8 @@ node_modules/
 *.log
 *.tmp
 *.bak
+*.zip
+database/*_import.sql
 proxy_output.html
 
 mm-iot-esp32-main/build/
