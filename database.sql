@@ -18,9 +18,12 @@ CREATE TABLE users (
     notes TEXT
 );
 
--- Default admin account: admin / admin123
+-- Default accounts:
+-- Admin: admin / admin123
+-- Viewer: viewer / admin123
 INSERT INTO users (username, password, role, full_name, email, notes) VALUES
-('admin', '$2y$10$nTEDKXvfEWtCbiXSFHmBNOc6kqfr0fibJTTF47Kwtli4RYexCgDTW', 'admin', 'System Admin', 'admin@wifiholow.test', 'Administrator utama')
+('admin', '$2y$10$nTEDKXvfEWtCbiXSFHmBNOc6kqfr0fibJTTF47Kwtli4RYexCgDTW', 'admin', 'System Admin', 'admin@wifiholow.test', 'Administrator utama'),
+('viewer', '$2y$10$nTEDKXvfEWtCbiXSFHmBNOc6kqfr0fibJTTF47Kwtli4RYexCgDTW', 'viewer', 'Read Only Viewer', 'viewer@wifiholow.test', 'User viewer read-only')
 ON DUPLICATE KEY UPDATE username = VALUES(username);
 
 -- Test locations table

@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../../app/Helpers/functions.php';
 // Handle form submission
 $success = null;
 $error = null;
+$canManageProject = canManageProject();
 
 function connectivityPayload($source) {
     $packetSent = (int) ($source['packet_sent'] ?? 0);
@@ -33,6 +34,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $recordId = (int) ($_POST['id'] ?? 0);
 
     try {
+        if (!$canManageProject) {
+            throw new RuntimeException('Akses ditolak. Viewer hanya bisa melihat data.');
+        }
+
         if ($action === 'delete') {
             if ($recordId <= 0) {
                 throw new RuntimeException('ID data tidak valid.');
@@ -240,6 +245,7 @@ foreach ($connectivityGraphRows as $row) {
     <?php endif; ?>
     
     <div class="row">
+        <?php if ($canManageProject): ?>
         <div class="col-lg-6 mb-4">
             <div class="card">
                 <div class="card-header bg-primary text-white">
@@ -330,6 +336,18 @@ foreach ($connectivityGraphRows as $row) {
                 </div>
             </div>
         </div>
+        <?php else: ?>
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0"><i class="fas fa-eye"></i> Mode Viewer</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-0">Form input, edit, dan hapus dinonaktifkan untuk role ini. Data connectivity tetap bisa dilihat dari statistik, tabel, detail, grafik, dan export.</p>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
         
         <div class="col-lg-6 mb-4">
             <div class="card">
@@ -458,12 +476,14 @@ foreach ($connectivityGraphRows as $row) {
                             <button class="btn btn-sm btn-outline-primary" onclick="viewConnectivity(<?php echo $test['id']; ?>)">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-warning" onclick="editConnectivity(<?php echo $test['id']; ?>)">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteConnectivity(<?php echo $test['id']; ?>)">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            <?php if ($canManageProject): ?>
+                                <button class="btn btn-sm btn-outline-warning" onclick="editConnectivity(<?php echo $test['id']; ?>)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteConnectivity(<?php echo $test['id']; ?>)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -607,6 +627,7 @@ foreach ($connectivityGraphRows as $row) {
     </div>
 </div>
 
+<?php if ($canManageProject): ?>
 <div class="modal fade" id="connectivityEditModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -729,6 +750,7 @@ foreach ($connectivityGraphRows as $row) {
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <script>
 var connectivityRows = <?php echo json_encode($connectivityMap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -1466,6 +1488,7 @@ function viewConnectivity(id) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('connectivityViewModal')).show();
 }
 
+<?php if ($canManageProject): ?>
 function editConnectivity(id) {
     var row = connectivityRow(id);
     if (!row) return;
@@ -1497,6 +1520,7 @@ function deleteConnectivity(id) {
     $('#connectivityDeleteLabel').text('#' + id);
     bootstrap.Modal.getOrCreateInstance(document.getElementById('connectivityDeleteModal')).show();
 }
+<?php endif; ?>
 </script>
 
 <style>

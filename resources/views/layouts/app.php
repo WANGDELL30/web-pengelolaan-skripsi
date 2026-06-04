@@ -1,3 +1,8 @@
+<?php
+$currentRole = currentUserRole();
+$canManageProject = canManageProject();
+$roleBadgeClass = $canManageProject ? 'danger' : ($currentRole === 'viewer' ? 'secondary' : 'info');
+?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -599,6 +604,13 @@
             <a href="index.php?page=reports" class="nav-link <?php echo ($_GET['page'] ?? '') === 'reports' ? 'active' : ''; ?>">
                 <i class="fas fa-file-pdf"></i> Reports
             </a>
+
+            <?php if ($currentRole === 'admin'): ?>
+                <div class="sidebar-heading text-white-50 small mt-3 px-3">ADMIN</div>
+                <a href="index.php?page=users" class="nav-link <?php echo ($_GET['page'] ?? '') === 'users' ? 'active' : ''; ?>">
+                    <i class="fas fa-users-cog"></i> Users
+                </a>
+            <?php endif; ?>
             
             <a href="?action=logout" class="nav-link mt-4" style="background: rgba(220,53,69,0.2);">
                 <i class="fas fa-sign-out-alt"></i> Logout
@@ -626,14 +638,20 @@
                         <i class="fas fa-user-circle"></i>
                         <?php echo $_SESSION['full_name'] ?? ($_SESSION['username'] ?? 'User'); ?>
                     </span>
-                    <span class="badge bg-<?php echo ($_SESSION['user_role'] ?? '') === 'admin' ? 'danger' : 'info'; ?>">
-                        <?php echo strtoupper($_SESSION['user_role'] ?? 'user'); ?>
+                    <span class="badge bg-<?php echo $roleBadgeClass; ?>">
+                        <?php echo strtoupper($currentRole ?? 'user'); ?>
                     </span>
                 </div>
             </div>
         </div>
         
         <div class="content">
+            <?php if (!$canManageProject): ?>
+                <div class="alert alert-secondary d-flex align-items-center gap-2" role="alert">
+                    <i class="fas fa-eye"></i>
+                    <span>Mode viewer aktif. Role ini hanya bisa melihat data; input, edit, hapus, command, dan konfigurasi perangkat dinonaktifkan.</span>
+                </div>
+            <?php endif; ?>
             <?php echo $content ?? ''; ?>
         </div>
     </div>

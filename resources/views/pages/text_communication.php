@@ -102,6 +102,7 @@ $success = null;
 $error = null;
 $notice = null;
 $statusResult = null;
+$canManageProject = canManageProject();
 $form = [
     'test_date' => date('Y-m-d'),
     'source_node' => 'MASTER-RASPI-4',
@@ -122,6 +123,16 @@ $masterHost = in_array($hostOnly, ['localhost', '127.0.0.1', '::1'], true) ? '19
 $defaultMasterInboxUrl = 'http://' . $masterHost . $publicPath . '/text_message_inbox.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_message_action'])) {
+    if (!$canManageProject) {
+        if (($_POST['_ajax'] ?? '') === '1') {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => false, 'message' => 'Akses ditolak. Viewer hanya bisa melihat data pesan.']);
+            exit;
+        }
+
+        $error = 'Akses ditolak. Viewer hanya bisa melihat data pesan.';
+    } else {
     foreach ($form as $key => $value) {
         if (isset($_POST[$key])) {
             $form[$key] = trim((string) $_POST[$key]);
@@ -278,6 +289,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_message_action'])) {
         $error = 'Gagal menyimpan log. Pastikan migrasi text_message_logs sudah dijalankan. Detail: ' . $e->getMessage();
     } catch (RuntimeException $e) {
         $error = $e->getMessage();
+    }
     }
 }
 
@@ -683,6 +695,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
 <?php endif; ?>
 
+<?php if ($canManageProject): ?>
 <div class="row">
     <div class="col-lg-7">
         <div class="message-panel">
@@ -769,7 +782,19 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+<?php else: ?>
+<div class="message-panel">
+    <div class="d-flex align-items-start gap-3">
+        <i class="fas fa-eye text-secondary mt-1"></i>
+        <div>
+            <h5 class="mb-1">Mode Viewer</h5>
+            <p class="text-muted mb-0">Pengiriman pesan, cek status perangkat, dan request slave-ke-master dinonaktifkan untuk role ini. Log komunikasi tetap bisa dilihat dan diexport.</p>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
+<?php if ($canManageProject): ?>
 <div class="message-panel">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <h5 class="mb-0"><i class="fas fa-share"></i> Slave ke Master</h5>
@@ -793,6 +818,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <div class="message-panel">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">

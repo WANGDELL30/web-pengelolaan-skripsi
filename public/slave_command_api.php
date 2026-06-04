@@ -94,6 +94,10 @@ if (!isLoggedIn()) {
     commandApiRespond(401, ['status' => 'error', 'message' => 'Session login tidak valid.']);
 }
 
+if (!canManageProject()) {
+    commandApiRespond(403, ['status' => 'error', 'message' => 'Akses ditolak. Viewer hanya bisa melihat data command.']);
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     commandApiRespond(405, ['status' => 'error', 'message' => 'Gunakan method POST.']);
 }

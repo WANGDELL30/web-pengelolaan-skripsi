@@ -5,6 +5,9 @@
  */
 
 // Database configuration
+$hostName = strtolower($_SERVER['HTTP_HOST'] ?? '');
+$isProductionHost = preg_match('/(^|\.)skripsi\.arndilhmzbr\.engineer$/', $hostName);
+
 $config = [
     'host' => 'localhost',
     'dbname' => 'wifi_holow_testing',
@@ -12,6 +15,29 @@ $config = [
     'password' => '',
     'charset' => 'utf8mb4'
 ];
+
+if ($isProductionHost) {
+    $config = [
+        'host' => 'localhost',
+        'dbname' => 'arndilh2_skripsi',
+        'username' => 'arndilh2_skripsi',
+        'password' => '',
+        'charset' => 'utf8mb4'
+    ];
+}
+
+$localConfigFile = __DIR__ . '/database.local.php';
+if (is_file($localConfigFile)) {
+    $localConfig = require $localConfigFile;
+    if (is_array($localConfig)) {
+        $config = array_merge($config, array_intersect_key($localConfig, $config));
+    }
+}
+
+$config['host'] = getenv('DB_HOST') ?: $config['host'];
+$config['dbname'] = getenv('DB_NAME') ?: $config['dbname'];
+$config['username'] = getenv('DB_USER') ?: $config['username'];
+$config['password'] = getenv('DB_PASS') ?: $config['password'];
 
 try {
     $pdo = new PDO(

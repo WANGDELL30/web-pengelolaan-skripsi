@@ -16,6 +16,12 @@ if (!isLoggedIn()) {
     exit;
 }
 
+if (!canManageProject()) {
+    http_response_code(403);
+    echo 'Akses panel konfigurasi master hanya untuk admin.';
+    exit;
+}
+
 // The proxy only needs the app session for the login check above. Releasing the
 // lock lets LuCI load its JS, CSS and RPC calls in parallel instead of queuing.
 $appSessionName = session_name();

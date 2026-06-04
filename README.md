@@ -99,8 +99,8 @@ http://localhost/wifi-testing-system/public/
 ```
 
 ### 5. Login Default
-- Username: `admin`
-- Password: `admin123`
+- Admin: `admin` / `admin123`
+- Viewer read-only: `viewer` / `admin123`
 
 ## Struktur Folder
 ```
