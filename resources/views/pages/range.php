@@ -1631,7 +1631,7 @@ $(function() {
 
             var width = mapElement.clientWidth;
             var height = mapElement.clientHeight;
-            var ratio = Math.max(1, window.devicePixelRatio || 1);
+            var ratio = Math.max(2, window.devicePixelRatio || 1);
 
             if (width <= 0 || height <= 0) {
                 return;
@@ -1651,6 +1651,53 @@ $(function() {
             ctx.scale(ratio, ratio);
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
+
+            satellitePoints
+                .filter(function(point) {
+                    return point.distance > 0 && point.distance < 50000;
+                })
+                .sort(function(a, b) {
+                    return Number(b.distance || 0) - Number(a.distance || 0);
+                })
+                .forEach(function(point) {
+                    var centerLatLng = L.latLng(point.masterLat, point.masterLng);
+                    var centerPixel = map.latLngToContainerPoint(centerLatLng);
+                    var edgePixel = map.latLngToContainerPoint(destinationLatLng(centerLatLng, point.distance, 90));
+                    var radiusPx = Math.sqrt(Math.pow(edgePixel.x - centerPixel.x, 2) + Math.pow(edgePixel.y - centerPixel.y, 2));
+
+                    if (!isFinite(radiusPx) || radiusPx <= 1) {
+                        return;
+                    }
+
+                    var color = point.color || '#1e3c72';
+                    var fillGradient = ctx.createRadialGradient(
+                        centerPixel.x,
+                        centerPixel.y,
+                        Math.max(1, radiusPx * 0.18),
+                        centerPixel.x,
+                        centerPixel.y,
+                        radiusPx
+                    );
+
+                    fillGradient.addColorStop(0, hexToRgba(color, 0.12));
+                    fillGradient.addColorStop(0.72, hexToRgba(color, 0.055));
+                    fillGradient.addColorStop(1, hexToRgba(color, 0.015));
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(centerPixel.x, centerPixel.y, radiusPx, 0, Math.PI * 2);
+                    ctx.fillStyle = fillGradient;
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.arc(centerPixel.x, centerPixel.y, radiusPx, 0, Math.PI * 2);
+                    ctx.lineWidth = 1.8;
+                    ctx.shadowColor = hexToRgba(color, 0.28);
+                    ctx.shadowBlur = 6;
+                    ctx.strokeStyle = hexToRgba(color, 0.62);
+                    ctx.stroke();
+                    ctx.restore();
+                });
 
             satellitePoints.forEach(function(point) {
                 var masterPixel = map.latLngToContainerPoint([point.masterLat, point.masterLng]);
@@ -1699,6 +1746,45 @@ $(function() {
             });
 
             ctx.restore();
+        }
+
+        function destinationLatLng(origin, distanceMeters, bearingDegrees) {
+            var earthRadius = 6378137;
+            var angularDistance = distanceMeters / earthRadius;
+            var bearing = bearingDegrees * Math.PI / 180;
+            var lat1 = origin.lat * Math.PI / 180;
+            var lng1 = origin.lng * Math.PI / 180;
+            var sinLat1 = Math.sin(lat1);
+            var cosLat1 = Math.cos(lat1);
+            var sinAngular = Math.sin(angularDistance);
+            var cosAngular = Math.cos(angularDistance);
+            var lat2 = Math.asin((sinLat1 * cosAngular) + (cosLat1 * sinAngular * Math.cos(bearing)));
+            var lng2 = lng1 + Math.atan2(
+                Math.sin(bearing) * sinAngular * cosLat1,
+                cosAngular - (sinLat1 * Math.sin(lat2))
+            );
+
+            return L.latLng(lat2 * 180 / Math.PI, lng2 * 180 / Math.PI);
+        }
+
+        function hexToRgba(hex, alpha) {
+            var normalized = String(hex || '#1e3c72').replace('#', '').trim();
+
+            if (normalized.length === 3) {
+                normalized = normalized.split('').map(function(char) {
+                    return char + char;
+                }).join('');
+            }
+
+            if (!/^[0-9a-f]{6}$/i.test(normalized)) {
+                normalized = '1e3c72';
+            }
+
+            return 'rgba('
+                + parseInt(normalized.slice(0, 2), 16) + ', '
+                + parseInt(normalized.slice(2, 4), 16) + ', '
+                + parseInt(normalized.slice(4, 6), 16) + ', '
+                + alpha + ')';
         }
 
         function labelOffsetLatLng(masterLatLng, slaveLatLng, offsetPixels) {
@@ -1764,16 +1850,6 @@ $(function() {
             }).addTo(map).bindTooltip(point.label + ' - ' + meterLabel(point.distance), {
                 sticky: true
             });
-
-            if (point.distance > 0 && point.distance < 50000) {
-                L.circle(master, {
-                    radius: point.distance,
-                    color: point.color || '#1e3c72',
-                    weight: 1,
-                    opacity: 0.35,
-                    fillOpacity: 0.04
-                }).addTo(map);
-            }
 
             distanceLabelData.push({
                 point: point,
@@ -1921,7 +1997,7 @@ $(function() {
                     useCORS: true,
                     allowTaint: false,
                     logging: false,
-                    scale: Math.min(2, window.devicePixelRatio || 1),
+                    scale: 2,
                     ignoreElements: function(element) {
                         return element.hasAttribute && element.hasAttribute('data-map-capture-ignore');
                     }

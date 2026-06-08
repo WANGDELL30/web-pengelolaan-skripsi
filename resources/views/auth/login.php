@@ -9,15 +9,16 @@
     <link rel="stylesheet" href="css/style.css">
     <style>
         :root {
-            --military-bg: #0d1410;
-            --military-panel: #151d18;
-            --military-panel-2: #1d2a22;
-            --military-line: rgba(142, 162, 133, 0.2);
-            --military-olive: #6f7f45;
-            --military-olive-bright: #9daf63;
+            --military-bg: #0f172a;
+            --military-panel: #111827;
+            --military-panel-2: #16213d;
+            --military-field: #0b1224;
+            --military-line: rgba(42, 82, 152, 0.26);
+            --military-olive: #1e3c72;
+            --military-olive-bright: #2a5298;
             --military-amber: #d6b35a;
-            --military-text: #e7eadf;
-            --military-muted: #9ca78f;
+            --military-text: #eef4ff;
+            --military-muted: #a8b5c7;
             --military-danger: #c2554f;
         }
 
@@ -30,10 +31,10 @@
             margin: 0;
             color: var(--military-text);
             background:
-                linear-gradient(rgba(13, 20, 16, 0.86), rgba(13, 20, 16, 0.94)),
-                repeating-linear-gradient(0deg, transparent 0, transparent 31px, rgba(157, 175, 99, 0.08) 32px),
-                repeating-linear-gradient(90deg, transparent 0, transparent 31px, rgba(157, 175, 99, 0.08) 32px),
-                radial-gradient(circle at 50% 42%, rgba(111, 127, 69, 0.22), transparent 42%),
+                linear-gradient(rgba(15, 23, 42, 0.86), rgba(8, 15, 29, 0.95)),
+                repeating-linear-gradient(0deg, transparent 0, transparent 31px, rgba(42, 82, 152, 0.1) 32px),
+                repeating-linear-gradient(90deg, transparent 0, transparent 31px, rgba(42, 82, 152, 0.1) 32px),
+                radial-gradient(circle at 50% 42%, rgba(42, 82, 152, 0.24), transparent 42%),
                 var(--military-bg);
             display: flex;
             align-items: center;
@@ -59,15 +60,15 @@
         }
 
         body::after {
-            border: 1px solid rgba(157, 175, 99, 0.18);
+            border: 1px solid rgba(42, 82, 152, 0.28);
             inset: 16px;
         }
 
         .login-container {
             position: relative;
             z-index: 1;
-            background: linear-gradient(180deg, rgba(21, 29, 24, 0.98), rgba(12, 18, 14, 0.98));
-            border: 1px solid rgba(157, 175, 99, 0.38);
+            background: linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(10, 18, 35, 0.98));
+            border: 1px solid rgba(42, 82, 152, 0.48);
             border-radius: 8px;
             box-shadow: 0 22px 60px rgba(0,0,0,0.48);
             overflow: hidden;
@@ -82,16 +83,16 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, var(--military-olive), var(--military-amber), var(--military-olive));
+            background: linear-gradient(90deg, var(--military-olive), var(--military-amber), var(--military-olive-bright));
         }
 
         .login-header {
             position: relative;
             padding: 28px 30px 22px;
             background:
-                linear-gradient(135deg, rgba(45, 63, 49, 0.98), rgba(18, 30, 22, 0.98)),
+                linear-gradient(135deg, rgba(30, 60, 114, 0.98), rgba(16, 30, 58, 0.98)),
                 repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 9px);
-            border-bottom: 1px solid rgba(157, 175, 99, 0.28);
+            border-bottom: 1px solid rgba(42, 82, 152, 0.42);
         }
 
         .system-tag {
@@ -103,7 +104,7 @@
             border: 1px solid rgba(214, 179, 90, 0.42);
             border-radius: 4px;
             color: var(--military-amber);
-            background: rgba(13, 20, 16, 0.52);
+            background: rgba(10, 18, 35, 0.56);
             font-size: 0.76rem;
             font-weight: 700;
             letter-spacing: 0.08em;
@@ -123,11 +124,11 @@
             align-items: center;
             justify-content: center;
             flex: 0 0 54px;
-            border: 1px solid rgba(157, 175, 99, 0.55);
+            border: 1px solid rgba(214, 179, 90, 0.48);
             border-radius: 8px;
             color: var(--military-amber);
-            background: #101812;
-            box-shadow: inset 0 0 18px rgba(157, 175, 99, 0.12);
+            background: var(--military-field);
+            box-shadow: inset 0 0 18px rgba(42, 82, 152, 0.22);
             font-size: 24px;
         }
 
@@ -155,9 +156,9 @@
             align-items: center;
             padding: 10px 12px;
             margin-bottom: 22px;
-            border: 1px solid rgba(157, 175, 99, 0.2);
+            border: 1px solid rgba(42, 82, 152, 0.34);
             border-radius: 6px;
-            background: rgba(29, 42, 34, 0.78);
+            background: rgba(22, 33, 61, 0.78);
             color: var(--military-muted);
             font-size: 0.82rem;
         }
@@ -187,8 +188,8 @@
             width: 46px;
             justify-content: center;
             color: var(--military-amber);
-            background: #101812;
-            border: 1px solid rgba(157, 175, 99, 0.34);
+            background: var(--military-field);
+            border: 1px solid rgba(42, 82, 152, 0.48);
             border-right: 0;
             border-radius: 6px 0 0 6px;
         }
@@ -196,19 +197,19 @@
         .form-control {
             min-height: 46px;
             color: var(--military-text);
-            background: #101812;
-            border: 1px solid rgba(157, 175, 99, 0.34);
+            background: var(--military-field);
+            border: 1px solid rgba(42, 82, 152, 0.48);
             border-left: 0;
             border-radius: 0 6px 6px 0;
         }
 
         .form-control::placeholder {
-            color: rgba(156, 167, 143, 0.72);
+            color: rgba(168, 181, 199, 0.72);
         }
 
         .form-control:focus {
             color: var(--military-text);
-            background: #101812;
+            background: var(--military-field);
             border-color: rgba(214, 179, 90, 0.7);
             box-shadow: 0 0 0 0.2rem rgba(214, 179, 90, 0.16);
         }
@@ -220,10 +221,10 @@
 
         .btn-primary {
             min-height: 48px;
-            background: linear-gradient(135deg, #6f7f45 0%, #46552f 100%);
+            background: linear-gradient(135deg, var(--military-olive) 0%, var(--military-olive-bright) 100%);
             border: 1px solid rgba(214, 179, 90, 0.42);
             border-radius: 6px;
-            color: #f6f4e7;
+            color: #f6f9ff;
             font-weight: 750;
             letter-spacing: 0.03em;
             transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
@@ -232,8 +233,8 @@
         .btn-primary:hover {
             transform: translateY(-1px);
             border-color: rgba(214, 179, 90, 0.72);
-            box-shadow: 0 8px 22px rgba(111, 127, 69, 0.32);
-            background: linear-gradient(135deg, #7f9250 0%, #526238 100%);
+            box-shadow: 0 8px 22px rgba(30, 60, 114, 0.36);
+            background: linear-gradient(135deg, #254985 0%, #3463ad 100%);
         }
 
         .btn-primary:active {
@@ -253,7 +254,7 @@
         .login-footer-line {
             height: 1px;
             margin-top: 24px;
-            background: linear-gradient(90deg, transparent, rgba(157, 175, 99, 0.38), transparent);
+            background: linear-gradient(90deg, transparent, rgba(42, 82, 152, 0.46), transparent);
         }
 
         @media (max-width: 575.98px) {
