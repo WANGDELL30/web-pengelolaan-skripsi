@@ -601,6 +601,12 @@ $roleBadgeClass = $canManageProject ? 'danger' : ($currentRole === 'viewer' ? 's
             <a href="index.php?page=analysis" class="nav-link <?php echo ($_GET['page'] ?? '') === 'analysis' ? 'active' : ''; ?>">
                 <i class="fas fa-chart-bar"></i> Analysis
             </a>
+            <a href="index.php?page=mesh-simulation" class="nav-link <?php echo ($_GET['page'] ?? '') === 'mesh-simulation' ? 'active' : ''; ?>">
+                <i class="fas fa-diagram-project"></i> Mesh Simulation
+            </a>
+            <a href="index.php?page=jamming-simulation" class="nav-link <?php echo ($_GET['page'] ?? '') === 'jamming-simulation' ? 'active' : ''; ?>">
+                <i class="fas fa-shield-alt"></i> Jamming Simulation
+            </a>
             <a href="index.php?page=reports" class="nav-link <?php echo ($_GET['page'] ?? '') === 'reports' ? 'active' : ''; ?>">
                 <i class="fas fa-file-pdf"></i> Reports
             </a>

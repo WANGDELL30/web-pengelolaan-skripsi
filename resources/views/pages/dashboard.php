@@ -229,7 +229,7 @@ foreach ($dashboardDistanceCharts as $index => $config) {
                 <div class="row align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-uppercase mb-1">Avg Latency (ms)</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo number_format($stats['avg_latency'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo formatNullableNumber($stats['avg_latency'], 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-clock fa-2x text-info"></i>
@@ -246,7 +246,7 @@ foreach ($dashboardDistanceCharts as $index => $config) {
                 <div class="row align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-uppercase mb-1">Avg Throughput (kbps)</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo number_format($stats['avg_throughput'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo formatNullableNumber($stats['avg_throughput'], 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-bolt fa-2x text-warning"></i>
@@ -263,7 +263,7 @@ foreach ($dashboardDistanceCharts as $index => $config) {
                 <div class="row align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-uppercase mb-1">Avg RSSI (dBm)</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo number_format($stats['avg_rssi'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo formatNullableNumber($stats['avg_rssi'], 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-signal fa-2x text-primary"></i>
@@ -280,7 +280,7 @@ foreach ($dashboardDistanceCharts as $index => $config) {
                 <div class="row align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-uppercase mb-1">Avg SNR (dB)</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo number_format($stats['avg_snr'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo formatNullableNumber($stats['avg_snr'], 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-chart-line fa-2x text-success"></i>
@@ -299,7 +299,7 @@ foreach ($dashboardDistanceCharts as $index => $config) {
                 <div class="row align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-uppercase mb-1">Avg Packet Loss (%)</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo number_format($stats['avg_packet_loss'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo formatNullableNumber($stats['avg_packet_loss'], 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-percentage fa-2x text-danger"></i>
@@ -316,7 +316,7 @@ foreach ($dashboardDistanceCharts as $index => $config) {
                 <div class="row align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-uppercase mb-1">Avg Power (W)</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo number_format($stats['avg_power'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo formatNullableNumber($stats['avg_power'], 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-battery-full fa-2x text-success"></i>
@@ -446,7 +446,7 @@ function dashboardHexToRgba(hex, alpha) {
 
 function dashboardFormatValue(value, unit) {
     if (value === null || value === undefined || isNaN(Number(value))) {
-        return '-';
+        return 'N/A';
     }
 
     var number = Number(value);

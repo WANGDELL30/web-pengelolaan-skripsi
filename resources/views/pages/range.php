@@ -108,13 +108,13 @@ $pageConfig = [
         ['name' => 'master_gps_longitude', 'label' => 'Master GPS Longitude', 'type' => 'number', 'step' => 'any', 'preserve_precision' => true, 'col' => 'col-md-3'],
         ['name' => 'gps_latitude', 'label' => 'Slave GPS Latitude', 'type' => 'number', 'step' => 'any', 'preserve_precision' => true, 'col' => 'col-md-3'],
         ['name' => 'gps_longitude', 'label' => 'Slave GPS Longitude', 'type' => 'number', 'step' => 'any', 'preserve_precision' => true, 'col' => 'col-md-3'],
-        ['name' => 'coordinate_x_meter', 'label' => 'Coordinate X Auto (m)', 'type' => 'number', 'step' => '0.01', 'default' => 0],
-        ['name' => 'coordinate_y_meter', 'label' => 'Coordinate Y Auto (m)', 'type' => 'number', 'step' => '0.01', 'default' => 0],
-        ['name' => 'coordinate_z_meter', 'label' => 'Coordinate Z / Elevation (m)', 'type' => 'number', 'step' => '0.01', 'default' => 0],
-        ['name' => 'distance_actual_meter', 'label' => 'Master-Slave Distance Auto (m)', 'type' => 'number', 'step' => '0.01', 'default' => 0],
+        ['name' => 'coordinate_x_meter', 'label' => 'Coordinate X Auto (m)', 'type' => 'number', 'step' => '0.01'],
+        ['name' => 'coordinate_y_meter', 'label' => 'Coordinate Y Auto (m)', 'type' => 'number', 'step' => '0.01'],
+        ['name' => 'coordinate_z_meter', 'label' => 'Coordinate Z / Elevation (m)', 'type' => 'number', 'step' => '0.01'],
+        ['name' => 'distance_actual_meter', 'label' => 'Master-Slave Distance Auto (m)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'frequency_mhz', 'label' => 'Frequency (MHz)', 'type' => 'number', 'step' => '0.01', 'default' => 915],
-        ['name' => 'rssi_dbm', 'label' => 'RSSI (dBm)', 'type' => 'number', 'step' => '0.01', 'required' => true],
-        ['name' => 'snr_db', 'label' => 'SNR (dB)', 'type' => 'number', 'step' => '0.01', 'required' => true],
+        ['name' => 'rssi_dbm', 'label' => 'RSSI (dBm)', 'type' => 'number', 'step' => '0.01'],
+        ['name' => 'snr_db', 'label' => 'SNR (dB)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'bitrate_kbps', 'label' => 'Bitrate (kbps)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'connection_status', 'label' => 'Connection Status', 'type' => 'select', 'options' => ['connected', 'disconnected', 'intermittent']],
         ['name' => 'receiver_sensitivity_dbm', 'label' => 'Receiver Sensitivity (dBm)', 'type' => 'number', 'step' => '0.01', 'default' => -90],
@@ -126,30 +126,35 @@ $pageConfig = [
         $masterLng = rangeGpsValue($data['master_gps_longitude'] ?? null, 'lng');
         $slaveLat = rangeGpsValue($data['gps_latitude'] ?? null, 'lat');
         $slaveLng = rangeGpsValue($data['gps_longitude'] ?? null, 'lng');
-        $x = (float) ($data['coordinate_x_meter'] ?? 0);
-        $y = (float) ($data['coordinate_y_meter'] ?? 0);
-        $z = (float) ($data['coordinate_z_meter'] ?? 0);
-        $distanceMeter = (float) ($data['distance_actual_meter'] ?? 0);
+        $x = is_numeric($data['coordinate_x_meter'] ?? null) ? (float) $data['coordinate_x_meter'] : null;
+        $y = is_numeric($data['coordinate_y_meter'] ?? null) ? (float) $data['coordinate_y_meter'] : null;
+        $z = is_numeric($data['coordinate_z_meter'] ?? null) ? (float) $data['coordinate_z_meter'] : null;
+        $distanceMeter = is_numeric($data['distance_actual_meter'] ?? null) ? (float) $data['distance_actual_meter'] : null;
 
         if (rangeHasGpsPair($masterLat, $masterLng, $slaveLat, $slaveLng)) {
             $distanceMeter = rangeHaversineDistance($masterLat, $masterLng, $slaveLat, $slaveLng);
             [$x, $y] = rangeGpsOffsetMeters($masterLat, $masterLng, $slaveLat, $slaveLng);
-        } elseif ($distanceMeter <= 0) {
+        } elseif (($distanceMeter === null || $distanceMeter <= 0) && $x !== null && $y !== null) {
             $distanceMeter = sqrt(($x * $x) + ($y * $y));
         }
 
-        $distanceKm = $distanceMeter > 0 ? $distanceMeter / 1000 : 0;
-        $snr = (float) ($data['snr_db'] ?? 0);
-        $status = $data['connection_status'] === 'disconnected' ? 'poor' : ($snr > 20 ? 'good' : ($snr >= 10 ? 'moderate' : 'poor'));
+        $distanceKm = $distanceMeter !== null && $distanceMeter > 0 ? $distanceMeter / 1000 : null;
+        $snr = is_numeric($data['snr_db'] ?? null) ? (float) $data['snr_db'] : null;
+        $status = ($data['connection_status'] ?? null) === 'disconnected' ? 'poor' : determineRangeStatus($snr, 0);
+        $hasCoordinates = $x !== null && $y !== null;
+        $distance3d = $hasCoordinates ? sqrt(($x * $x) + ($y * $y) + (($z ?? 0) * ($z ?? 0))) : null;
+        $frequency = is_numeric($data['frequency_mhz'] ?? null) ? (float) $data['frequency_mhz'] : null;
+        $rssi = is_numeric($data['rssi_dbm'] ?? null) ? (float) $data['rssi_dbm'] : null;
+        $receiverSensitivity = is_numeric($data['receiver_sensitivity_dbm'] ?? null) ? (float) $data['receiver_sensitivity_dbm'] : null;
 
         return [
-            'coordinate_x_meter' => round($x, 2),
-            'coordinate_y_meter' => round($y, 2),
-            'distance_actual_meter' => round($distanceMeter, 2),
-            'distance_3d_meter' => round(sqrt(($x * $x) + ($y * $y) + ($z * $z)), 2),
-            'distance_km' => round($distanceKm, 4),
-            'fspl_db' => $distanceKm > 0 ? calculateFSPL((float) $data['frequency_mhz'], $distanceKm) : 0,
-            'signal_margin' => calculateSignalMargin((float) $data['rssi_dbm'], (float) $data['receiver_sensitivity_dbm']),
+            'coordinate_x_meter' => $x === null ? null : round($x, 2),
+            'coordinate_y_meter' => $y === null ? null : round($y, 2),
+            'distance_actual_meter' => $distanceMeter === null ? null : round($distanceMeter, 2),
+            'distance_3d_meter' => $distance3d === null ? null : round($distance3d, 2),
+            'distance_km' => $distanceKm === null ? null : round($distanceKm, 4),
+            'fspl_db' => $distanceKm !== null && $frequency !== null ? calculateFSPL($frequency, $distanceKm) : null,
+            'signal_margin' => $rssi !== null && $receiverSensitivity !== null ? calculateSignalMargin($rssi, $receiverSensitivity) : null,
             'status_result' => $status,
         ];
     },

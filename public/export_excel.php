@@ -76,22 +76,22 @@ function exportAnalysisRows() {
     return [
         [
             'metric' => 'Average Latency',
-            'value' => number_format((float) exportAnalysisMetric('SELECT AVG(latency_ms) AS value FROM latency_tests'), 2) . ' ms',
+            'value' => exportAnalysisValue('SELECT AVG(latency_ms) AS value FROM latency_tests WHERE latency_ms IS NOT NULL', ' ms'),
             'interpretation' => 'Semakin rendah semakin baik untuk kontrol real-time.',
         ],
         [
             'metric' => 'Average Throughput',
-            'value' => number_format((float) exportAnalysisMetric('SELECT AVG(throughput_kbps) AS value FROM throughput_tests'), 2) . ' kbps',
+            'value' => exportAnalysisValue('SELECT AVG(throughput_kbps) AS value FROM throughput_tests WHERE throughput_kbps IS NOT NULL', ' kbps'),
             'interpretation' => 'Menunjukkan kapasitas transfer data aktual.',
         ],
         [
             'metric' => 'Average RSSI',
-            'value' => number_format((float) exportAnalysisMetric('SELECT AVG(rssi_dbm) AS value FROM connectivity_tests'), 2) . ' dBm',
+            'value' => exportAnalysisValue('SELECT AVG(rssi_dbm) AS value FROM connectivity_tests WHERE rssi_dbm IS NOT NULL', ' dBm'),
             'interpretation' => 'Nilai mendekati 0 berarti sinyal lebih kuat.',
         ],
         [
             'metric' => 'Average Power',
-            'value' => number_format((float) exportAnalysisMetric('SELECT AVG(power_w) AS value FROM power_consumption_tests'), 2) . ' W',
+            'value' => exportAnalysisValue('SELECT AVG(power_w) AS value FROM power_consumption_tests WHERE power_w IS NOT NULL', ' W'),
             'interpretation' => 'Dipakai untuk evaluasi konsumsi daya perangkat.',
         ],
         [
@@ -102,12 +102,22 @@ function exportAnalysisRows() {
     ];
 }
 
+function exportAnalysisValue($sql, $suffix) {
+    $value = exportAnalysisMetric($sql);
+
+    if ($value === null || $value === '') {
+        return 'N/A';
+    }
+
+    return number_format((float) $value, 2) . $suffix;
+}
+
 function exportAnalysisMetric($sql) {
     try {
         $row = fetchOne($sql);
-        return $row['value'] ?? 0;
+        return $row['value'] ?? null;
     } catch (PDOException $e) {
-        return 0;
+        return null;
     }
 }
 
@@ -327,7 +337,11 @@ function xlsxCell($rowNumber, $columnNumber, $value, $style = 0) {
     $cellRef = xlsxColumnName($columnNumber) . $rowNumber;
     $styleAttribute = $style > 0 ? ' s="' . $style . '"' : '';
 
-    if ($value === null || $value === '') {
+    if ($value === null) {
+        return '<c r="' . $cellRef . '"' . $styleAttribute . ' t="inlineStr"><is><t>N/A</t></is></c>';
+    }
+
+    if ($value === '') {
         return '<c r="' . $cellRef . '"' . $styleAttribute . '/>';
     }
 

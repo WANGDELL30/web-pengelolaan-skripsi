@@ -58,16 +58,16 @@ if (!function_exists('testPageFormatValue')) {
 
         $value = $row[$column['field']] ?? '';
 
+        if ($value === null || $value === '') {
+            return 'N/A';
+        }
+
         if (($column['format'] ?? '') === 'date' && $value) {
             $value = formatDate($value);
         }
 
         if (($column['format'] ?? '') === 'status') {
             return getStatusBadge((string) $value);
-        }
-
-        if ($value === null || $value === '') {
-            return '-';
         }
 
         if (is_numeric($value) && isset($column['decimals'])) {
@@ -272,7 +272,8 @@ if (!function_exists('testPageBuildCharts')) {
             $chartType = $metric['type'] ?? (in_array($unit, ['%', 'ms'], true) ? 'bar' : 'line');
 
             foreach ($chartRows as $row) {
-                $value = $row[$metric['field']] ?? 0;
+                $field = $metric['field'];
+                $value = array_key_exists($field, $row) ? $row[$field] : null;
                 $data[] = is_numeric($value) ? (float) $value : null;
             }
 
@@ -540,12 +541,12 @@ $detailLabels['updated_at'] = 'Updated At';
                     <div class="test-chart-summary-card" style="--summary-color: <?php echo htmlspecialchars($card['color']); ?>;">
                         <span><?php echo htmlspecialchars($card['label']); ?></span>
                         <strong>
-                            <?php echo $card['avg'] === null ? '-' : number_format((float) $card['avg'], 2); ?>
+                            <?php echo $card['avg'] === null ? 'N/A' : number_format((float) $card['avg'], 2); ?>
                             <?php echo htmlspecialchars($card['unit']); ?>
                         </strong>
                         <small>
-                            Avg | Min <?php echo $card['min'] === null ? '-' : number_format((float) $card['min'], 2); ?>
-                            | Max <?php echo $card['max'] === null ? '-' : number_format((float) $card['max'], 2); ?>
+                            Avg | Min <?php echo $card['min'] === null ? 'N/A' : number_format((float) $card['min'], 2); ?>
+                            | Max <?php echo $card['max'] === null ? 'N/A' : number_format((float) $card['max'], 2); ?>
                         </small>
                     </div>
                 </div>
@@ -776,7 +777,7 @@ $(function() {
 
     function displayValue(value) {
         if (value === null || value === undefined || value === '') {
-            return '-';
+            return 'N/A';
         }
         return $('<div>').text(value).html();
     }
@@ -835,7 +836,7 @@ $(function() {
 
     function formatMetricValue(value, unit) {
         if (value === null || value === undefined || isNaN(Number(value))) {
-            return '-';
+            return 'N/A';
         }
 
         var number = Number(value);

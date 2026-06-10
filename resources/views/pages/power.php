@@ -21,9 +21,9 @@ $pageConfig = [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'device_id', 'label' => 'Device ID', 'required' => true],
         ['name' => 'device_type', 'label' => 'Device Type', 'type' => 'select', 'options' => ['master', 'slave']],
-        ['name' => 'battery_voltage_v', 'label' => 'Battery Voltage (V)', 'type' => 'number', 'step' => '0.01', 'required' => true],
-        ['name' => 'current_a', 'label' => 'Current (A)', 'type' => 'number', 'step' => '0.01', 'required' => true],
-        ['name' => 'test_duration_hour', 'label' => 'Test Duration (hour)', 'type' => 'number', 'step' => '0.01', 'required' => true],
+        ['name' => 'battery_voltage_v', 'label' => 'Battery Voltage (V)', 'type' => 'number', 'step' => '0.01'],
+        ['name' => 'current_a', 'label' => 'Current (A)', 'type' => 'number', 'step' => '0.01'],
+        ['name' => 'test_duration_hour', 'label' => 'Test Duration (hour)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'battery_capacity_mah', 'label' => 'Battery Capacity (mAh)', 'type' => 'number', 'integer' => true],
         ['name' => 'cpu_usage_percent', 'label' => 'CPU Usage (%)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'ram_usage_percent', 'label' => 'RAM Usage (%)', 'type' => 'number', 'step' => '0.01'],
@@ -32,16 +32,16 @@ $pageConfig = [
         ['name' => 'notes', 'label' => 'Notes', 'type' => 'textarea'],
     ],
     'calculate' => function ($data) {
-        $power = calculatePower((float) $data['battery_voltage_v'], (float) $data['current_a']);
-        $capacityWh = calculateBatteryCapacityWh((float) $data['battery_voltage_v'], (int) ($data['battery_capacity_mah'] ?? 0));
+        $power = calculatePower($data['battery_voltage_v'] ?? null, $data['current_a'] ?? null);
+        $capacityWh = calculateBatteryCapacityWh($data['battery_voltage_v'] ?? null, $data['battery_capacity_mah'] ?? null);
         $runtimeHour = calculateRuntime($capacityWh, $power);
 
         return [
             'power_w' => $power,
-            'energy_wh' => calculateEnergy($power, (float) $data['test_duration_hour']),
+            'energy_wh' => calculateEnergy($power, $data['test_duration_hour'] ?? null),
             'battery_capacity_wh' => $capacityWh,
             'estimated_runtime_hour' => $runtimeHour,
-            'estimated_runtime_day' => round($runtimeHour / 24, 2),
+            'estimated_runtime_day' => $runtimeHour === null ? null : round($runtimeHour / 24, 2),
         ];
     },
     'formulas' => [

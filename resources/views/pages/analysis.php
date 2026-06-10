@@ -3,9 +3,9 @@ if (!function_exists('analysisMetric')) {
     function analysisMetric($sql, $key = 'value') {
         try {
             $row = fetchOne($sql);
-            return $row[$key] ?? 0;
+            return $row[$key] ?? null;
         } catch (PDOException $e) {
-            return 0;
+            return null;
         }
     }
 }
@@ -47,10 +47,10 @@ $summaryCards = [
 
 $metrics = [
     ['Metric', 'Value', 'Interpretation'],
-    ['Average Latency', number_format((float) analysisMetric("SELECT AVG(latency_ms) AS value FROM latency_tests"), 2) . ' ms', 'Semakin rendah semakin baik untuk kontrol real-time.'],
-    ['Average Throughput', number_format((float) analysisMetric("SELECT AVG(throughput_kbps) AS value FROM throughput_tests"), 2) . ' kbps', 'Menunjukkan kapasitas transfer data aktual.'],
-    ['Average RSSI', number_format((float) analysisMetric("SELECT AVG(rssi_dbm) AS value FROM connectivity_tests"), 2) . ' dBm', 'Nilai mendekati 0 berarti sinyal lebih kuat.'],
-    ['Average Power', number_format((float) analysisMetric("SELECT AVG(power_w) AS value FROM power_consumption_tests"), 2) . ' W', 'Dipakai untuk evaluasi konsumsi daya perangkat.'],
+    ['Average Latency', formatNullableNumber(analysisMetric("SELECT AVG(latency_ms) AS value FROM latency_tests WHERE latency_ms IS NOT NULL"), 2, ' ms'), 'Semakin rendah semakin baik untuk kontrol real-time.'],
+    ['Average Throughput', formatNullableNumber(analysisMetric("SELECT AVG(throughput_kbps) AS value FROM throughput_tests WHERE throughput_kbps IS NOT NULL"), 2, ' kbps'), 'Menunjukkan kapasitas transfer data aktual.'],
+    ['Average RSSI', formatNullableNumber(analysisMetric("SELECT AVG(rssi_dbm) AS value FROM connectivity_tests WHERE rssi_dbm IS NOT NULL"), 2, ' dBm'), 'Nilai mendekati 0 berarti sinyal lebih kuat.'],
+    ['Average Power', formatNullableNumber(analysisMetric("SELECT AVG(power_w) AS value FROM power_consumption_tests WHERE power_w IS NOT NULL"), 2, ' W'), 'Dipakai untuk evaluasi konsumsi daya perangkat.'],
     ['Secure Encryption', (int) analysisMetric("SELECT COUNT(*) AS value FROM encryption_tests WHERE encryption_status = 'secure'") . ' record', 'Jumlah pengujian enkripsi yang lolos sniffing dan integrity check.'],
 ];
 
@@ -60,6 +60,9 @@ $summaryValues = array_map(function ($card) {
 }, $summaryCards);
 $metricLabels = array_column(array_slice($metrics, 1), 0);
 $metricValues = array_map(function ($row) {
+    if (stripos($row[1], 'N/A') !== false) {
+        return null;
+    }
     return (float) preg_replace('/[^0-9.-]/', '', $row[1]);
 }, array_slice($metrics, 1));
 ?>
@@ -160,7 +163,7 @@ $metricValues = array_map(function ($row) {
 <div class="content-section">
     <h4 class="mb-3"><i class="fas fa-lightbulb"></i> Discussion Notes</h4>
     <p class="text-muted mb-0">
-        Halaman ini membaca data dari tabel pengujian yang sudah tersedia. Jika nilai masih 0, berarti data pada modul terkait belum diinput atau seed dummy belum diimport.
+        Halaman ini membaca data dari tabel pengujian yang sudah tersedia. Nilai yang tidak tersedia ditampilkan sebagai N/A agar tidak terbaca sebagai hasil pengukuran 0.
     </p>
 </div>
 

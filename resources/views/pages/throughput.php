@@ -32,12 +32,14 @@ $pageConfig = [
         ['name' => 'notes', 'label' => 'Notes', 'type' => 'textarea'],
     ],
     'calculate' => function ($data) {
-        $sent = (float) ($data['data_sent_kb'] ?? 0);
-        $received = (float) ($data['data_received_kb'] ?? 0);
+        $sent = $data['data_sent_kb'] ?? null;
+        $received = $data['data_received_kb'] ?? null;
+        $hasValidTransfer = is_numeric($sent) && is_numeric($received) && (float) $sent > 0 && (float) $received >= 0 && (float) $received <= (float) $sent;
+
         return [
-            'throughput_kbps' => calculateThroughput($received, (float) ($data['transmission_time_second'] ?? 0)),
-            'packet_delivery_ratio_percent' => $sent > 0 ? round(($received / $sent) * 100, 2) : 0,
-            'data_loss_percent' => $sent > 0 ? round((($sent - $received) / $sent) * 100, 2) : 0,
+            'throughput_kbps' => calculateThroughput($received, $data['transmission_time_second'] ?? null),
+            'packet_delivery_ratio_percent' => $hasValidTransfer ? round(((float) $received / (float) $sent) * 100, 2) : null,
+            'data_loss_percent' => $hasValidTransfer ? round((((float) $sent - (float) $received) / (float) $sent) * 100, 2) : null,
         ];
     },
     'formulas' => [

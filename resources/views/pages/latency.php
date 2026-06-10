@@ -33,18 +33,18 @@ $pageConfig = [
         ['name' => 'notes', 'label' => 'Notes', 'type' => 'textarea'],
     ],
     'calculate' => function ($data) {
-        $latency = (float) ($data['latency_ms'] ?? 0);
-        if (!$latency && $data['timestamp_send_ms'] && $data['timestamp_receive_ms']) {
+        $latency = $data['latency_ms'] ?? null;
+        if (($latency === null || $latency === '') && !empty($data['timestamp_send_ms']) && !empty($data['timestamp_receive_ms'])) {
             $latency = max(0, (int) $data['timestamp_receive_ms'] - (int) $data['timestamp_send_ms']);
         }
 
         return [
             'latency_ms' => $latency,
-            'packet_loss_percent' => calculatePacketLoss((int) $data['packet_sent'], (int) $data['packet_received']),
+            'packet_loss_percent' => calculatePacketLoss($data['packet_sent'] ?? null, $data['packet_received'] ?? null),
             'average_latency' => $latency,
             'minimum_latency' => $latency,
             'maximum_latency' => $latency,
-            'average_jitter' => (float) ($data['jitter_ms'] ?? 0),
+            'average_jitter' => $data['jitter_ms'] ?? null,
         ];
     },
     'formulas' => [

@@ -7,7 +7,13 @@
  * Calculate packet loss
  */
 function calculatePacketLoss($sent, $received) {
-    if ($sent == 0) return 0;
+    if ($sent === null || $received === null || $sent === '' || $received === '') return null;
+    if (!is_numeric($sent) || !is_numeric($received)) return null;
+
+    $sent = (float) $sent;
+    $received = (float) $received;
+
+    if ($sent <= 0 || $received < 0 || $received > $sent) return null;
     return round((($sent - $received) / $sent) * 100, 2);
 }
 
@@ -15,7 +21,13 @@ function calculatePacketLoss($sent, $received) {
  * Calculate success rate
  */
 function calculateSuccessRate($sent, $received) {
-    if ($sent == 0) return 0;
+    if ($sent === null || $received === null || $sent === '' || $received === '') return null;
+    if (!is_numeric($sent) || !is_numeric($received)) return null;
+
+    $sent = (float) $sent;
+    $received = (float) $received;
+
+    if ($sent <= 0 || $received < 0 || $received > $sent) return null;
     return round(($received / $sent) * 100, 2);
 }
 
@@ -44,6 +56,8 @@ function calculateSignalMargin($rssi, $sensitivity = -90) {
  * Determine range test status
  */
 function determineRangeStatus($snr, $packetLoss) {
+    if ($snr === null || $packetLoss === null || $snr === '' || $packetLoss === '') return null;
+
     if ($snr > 20 && $packetLoss < 5) {
         return 'good';
     } elseif ($snr >= 10 && $snr <= 20) {
@@ -57,6 +71,8 @@ function determineRangeStatus($snr, $packetLoss) {
  * Determine connection quality
  */
 function determineConnectionQuality($rssi) {
+    if ($rssi === null || $rssi === '' || !is_numeric($rssi)) return 'N/A';
+
     if ($rssi >= -50) return 'Excellent';
     if ($rssi >= -60) return 'Good';
     if ($rssi >= -70) return 'Fair';
@@ -68,7 +84,13 @@ function determineConnectionQuality($rssi) {
  * Calculate throughput
  */
 function calculateThroughput($dataKB, $timeSec) {
-    if ($timeSec == 0) return 0;
+    if ($dataKB === null || $timeSec === null || $dataKB === '' || $timeSec === '') return null;
+    if (!is_numeric($dataKB) || !is_numeric($timeSec)) return null;
+
+    $dataKB = (float) $dataKB;
+    $timeSec = (float) $timeSec;
+
+    if ($timeSec <= 0 || $dataKB < 0) return null;
     return round(($dataKB * 1024 * 8) / ($timeSec * 1000), 2);
 }
 
@@ -76,6 +98,13 @@ function calculateThroughput($dataKB, $timeSec) {
  * Calculate power
  */
 function calculatePower($voltage, $current) {
+    if ($voltage === null || $current === null || $voltage === '' || $current === '') return null;
+    if (!is_numeric($voltage) || !is_numeric($current)) return null;
+
+    $voltage = (float) $voltage;
+    $current = (float) $current;
+
+    if ($voltage < 0 || $current < 0) return null;
     return round($voltage * $current, 2);
 }
 
@@ -83,6 +112,13 @@ function calculatePower($voltage, $current) {
  * Calculate energy
  */
 function calculateEnergy($power, $duration) {
+    if ($power === null || $duration === null || $power === '' || $duration === '') return null;
+    if (!is_numeric($power) || !is_numeric($duration)) return null;
+
+    $power = (float) $power;
+    $duration = (float) $duration;
+
+    if ($power < 0 || $duration < 0) return null;
     return round($power * $duration, 4);
 }
 
@@ -90,6 +126,13 @@ function calculateEnergy($power, $duration) {
  * Calculate battery capacity in Wh
  */
 function calculateBatteryCapacityWh($voltage, $capacitymAh) {
+    if ($voltage === null || $capacitymAh === null || $voltage === '' || $capacitymAh === '') return null;
+    if (!is_numeric($voltage) || !is_numeric($capacitymAh)) return null;
+
+    $voltage = (float) $voltage;
+    $capacitymAh = (float) $capacitymAh;
+
+    if ($voltage <= 0 || $capacitymAh <= 0) return null;
     return round(($voltage * $capacitymAh) / 1000, 4);
 }
 
@@ -97,7 +140,13 @@ function calculateBatteryCapacityWh($voltage, $capacitymAh) {
  * Calculate estimated runtime
  */
 function calculateRuntime($capacityWh, $powerW) {
-    if ($powerW == 0) return 0;
+    if ($capacityWh === null || $powerW === null || $capacityWh === '' || $powerW === '') return null;
+    if (!is_numeric($capacityWh) || !is_numeric($powerW)) return null;
+
+    $capacityWh = (float) $capacityWh;
+    $powerW = (float) $powerW;
+
+    if ($capacityWh <= 0 || $powerW <= 0) return null;
     return round($capacityWh / $powerW, 2);
 }
 
@@ -132,6 +181,14 @@ function determineSystemStatus($metrics) {
  */
 function formatDate($date) {
     return date('d M Y', strtotime($date));
+}
+
+function formatNullableNumber($value, $decimals = 2, $suffix = '') {
+    if ($value === null || $value === '' || !is_numeric($value)) {
+        return 'N/A';
+    }
+
+    return number_format((float) $value, $decimals) . $suffix;
 }
 
 /**

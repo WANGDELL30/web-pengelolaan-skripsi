@@ -6,9 +6,28 @@ $success = null;
 $error = null;
 $canManageProject = canManageProject();
 
+function connectivityNullableNumber($source, $field, $integer = false) {
+    if (!array_key_exists($field, $source) || $source[$field] === '') {
+        return null;
+    }
+
+    return $integer ? (int) $source[$field] : (float) $source[$field];
+}
+
+function connectivityChartValue($value, $decimals = 2) {
+    return is_numeric($value) ? round((float) $value, $decimals) : null;
+}
+
+function connectivityDisplayNumber($value, $decimals = 2, $suffix = '') {
+    return formatNullableNumber($value, $decimals, $suffix);
+}
+
 function connectivityPayload($source) {
-    $packetSent = (int) ($source['packet_sent'] ?? 0);
-    $packetReceived = (int) ($source['packet_received'] ?? 0);
+    $packetSent = connectivityNullableNumber($source, 'packet_sent', true);
+    $packetReceived = connectivityNullableNumber($source, 'packet_received', true);
+    $packetLost = $packetSent !== null && $packetReceived !== null && $packetReceived >= 0 && $packetReceived <= $packetSent
+        ? $packetSent - $packetReceived
+        : null;
 
     return [
         'test_date' => sanitize($source['test_date'] ?? ''),
@@ -17,14 +36,14 @@ function connectivityPayload($source) {
         'node_id' => sanitize($source['node_id'] ?? ''),
         'node_type' => sanitize($source['node_type'] ?? ''),
         'connection_status' => sanitize($source['connection_status'] ?? ''),
-        'rssi_dbm' => (float) ($source['rssi_dbm'] ?? 0),
-        'snr_db' => (float) ($source['snr_db'] ?? 0),
+        'rssi_dbm' => connectivityNullableNumber($source, 'rssi_dbm'),
+        'snr_db' => connectivityNullableNumber($source, 'snr_db'),
         'packet_sent' => $packetSent,
         'packet_received' => $packetReceived,
-        'packet_lost' => $packetSent - $packetReceived,
+        'packet_lost' => $packetLost,
         'packet_loss_percent' => calculatePacketLoss($packetSent, $packetReceived),
         'packet_success_rate' => calculateSuccessRate($packetSent, $packetReceived),
-        'test_duration_second' => (int) ($source['test_duration_second'] ?? 0),
+        'test_duration_second' => connectivityNullableNumber($source, 'test_duration_second', true),
         'notes' => sanitize($source['notes'] ?? ''),
     ];
 }
@@ -130,10 +149,10 @@ $nodeRssiValues = [];
 $nodeSnrValues = [];
 foreach ($nodeQualityRows as $row) {
     $nodeQualityLabels[] = $row['node_id'];
-    $nodeSuccessValues[] = round((float) ($row['avg_success'] ?? 0), 2);
-    $nodeLossValues[] = round((float) ($row['avg_loss'] ?? 0), 2);
-    $nodeRssiValues[] = round((float) ($row['avg_rssi'] ?? 0), 1);
-    $nodeSnrValues[] = round((float) ($row['avg_snr'] ?? 0), 1);
+    $nodeSuccessValues[] = connectivityChartValue($row['avg_success'] ?? null, 2);
+    $nodeLossValues[] = connectivityChartValue($row['avg_loss'] ?? null, 2);
+    $nodeRssiValues[] = connectivityChartValue($row['avg_rssi'] ?? null, 1);
+    $nodeSnrValues[] = connectivityChartValue($row['avg_snr'] ?? null, 1);
 }
 
 $environmentRows = fetchAll("
@@ -155,9 +174,9 @@ $environmentLossValues = [];
 $environmentSnrValues = [];
 foreach ($environmentRows as $row) {
     $environmentLabels[] = ucfirst((string) $row['environment_type']);
-    $environmentSuccessValues[] = round((float) ($row['avg_success'] ?? 0), 2);
-    $environmentLossValues[] = round((float) ($row['avg_loss'] ?? 0), 2);
-    $environmentSnrValues[] = round((float) ($row['avg_snr'] ?? 0), 1);
+    $environmentSuccessValues[] = connectivityChartValue($row['avg_success'] ?? null, 2);
+    $environmentLossValues[] = connectivityChartValue($row['avg_loss'] ?? null, 2);
+    $environmentSnrValues[] = connectivityChartValue($row['avg_snr'] ?? null, 1);
 }
 
 $timelineRows = fetchAll("
@@ -184,9 +203,9 @@ $timelineLossValues = [];
 $timelineRssiValues = [];
 foreach ($timelineRows as $row) {
     $timelineLabels[] = formatDate($row['test_date']);
-    $timelineSuccessValues[] = round((float) ($row['avg_success'] ?? 0), 2);
-    $timelineLossValues[] = round((float) ($row['avg_loss'] ?? 0), 2);
-    $timelineRssiValues[] = round((float) ($row['avg_rssi'] ?? 0), 1);
+    $timelineSuccessValues[] = connectivityChartValue($row['avg_success'] ?? null, 2);
+    $timelineLossValues[] = connectivityChartValue($row['avg_loss'] ?? null, 2);
+    $timelineRssiValues[] = connectivityChartValue($row['avg_rssi'] ?? null, 1);
 }
 
 $connectivityGraphRows = fetchAll("
@@ -218,10 +237,10 @@ foreach ($connectivityGraphRows as $row) {
         'node' => $row['node_id'],
         'nodeType' => $row['node_type'] ?: '-',
         'status' => $row['connection_status'] ?: 'unknown',
-        'rssi' => round((float) ($row['rssi_dbm'] ?? 0), 1),
-        'snr' => round((float) ($row['snr_db'] ?? 0), 1),
-        'success' => round((float) ($row['packet_success_rate'] ?? 0), 2),
-        'loss' => round((float) ($row['packet_loss_percent'] ?? 0), 2),
+        'rssi' => connectivityChartValue($row['rssi_dbm'] ?? null, 1),
+        'snr' => connectivityChartValue($row['snr_db'] ?? null, 1),
+        'success' => connectivityChartValue($row['packet_success_rate'] ?? null, 2),
+        'loss' => connectivityChartValue($row['packet_loss_percent'] ?? null, 2),
     ];
 }
 ?>
@@ -308,21 +327,21 @@ foreach ($connectivityGraphRows as $row) {
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">RSSI (dBm)</label>
-                                <input type="number" step="0.1" class="form-control" name="rssi_dbm" placeholder="-30 to -90" required>
+                                <input type="number" step="0.1" class="form-control" name="rssi_dbm" placeholder="-30 to -90">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">SNR (dB)</label>
-                                <input type="number" step="0.1" class="form-control" name="snr_db" placeholder="0 to 50" required>
+                                <input type="number" step="0.1" class="form-control" name="snr_db" placeholder="0 to 50">
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Packet Sent</label>
-                                <input type="number" class="form-control" name="packet_sent" value="1000" required>
+                                <input type="number" class="form-control" name="packet_sent" value="1000">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Packet Received</label>
-                                <input type="number" class="form-control" name="packet_received" value="1000" required>
+                                <input type="number" class="form-control" name="packet_received" value="1000">
                             </div>
                         </div>
                         <div class="mb-3">
@@ -376,18 +395,20 @@ foreach ($connectivityGraphRows as $row) {
                 <div class="card-body">
                     <?php
                     $total_tests = count($connectivity_tests);
-                    $avg_rssi = 0;
-                    $avg_loss = 0;
+                    $rssiValues = [];
+                    $lossValues = [];
                     $connected = 0;
                     foreach ($connectivity_tests as $test) {
-                        $avg_rssi += $test['rssi_dbm'];
-                        $avg_loss += $test['packet_loss_percent'];
+                        if (is_numeric($test['rssi_dbm'] ?? null)) {
+                            $rssiValues[] = (float) $test['rssi_dbm'];
+                        }
+                        if (is_numeric($test['packet_loss_percent'] ?? null)) {
+                            $lossValues[] = (float) $test['packet_loss_percent'];
+                        }
                         if ($test['connection_status'] === 'connected') $connected++;
                     }
-                    if ($total_tests > 0) {
-                        $avg_rssi = round($avg_rssi / $total_tests, 2);
-                        $avg_loss = round($avg_loss / $total_tests, 2);
-                    }
+                    $avg_rssi = $rssiValues ? round(array_sum($rssiValues) / count($rssiValues), 2) : null;
+                    $avg_loss = $lossValues ? round(array_sum($lossValues) / count($lossValues), 2) : null;
                     $success_rate = $total_tests > 0 ? round(($connected / $total_tests) * 100, 2) : 0;
                     ?>
                     <div class="row text-center quick-stats-grid">
@@ -405,13 +426,13 @@ foreach ($connectivityGraphRows as $row) {
                         </div>
                         <div class="col-6 mb-3">
                             <div class="quick-stat-box">
-                                <h3 class="text-warning"><?php echo $avg_rssi; ?></h3>
+                                <h3 class="text-warning"><?php echo connectivityDisplayNumber($avg_rssi, 2); ?></h3>
                                 <small>Avg RSSI (dBm)</small>
                             </div>
                         </div>
                         <div class="col-6 mb-3">
                             <div class="quick-stat-box">
-                                <h3 class="text-danger"><?php echo $avg_loss; ?>%</h3>
+                                <h3 class="text-danger"><?php echo connectivityDisplayNumber($avg_loss, 2, '%'); ?></h3>
                                 <small>Avg Loss %</small>
                             </div>
                         </div>
@@ -468,10 +489,10 @@ foreach ($connectivityGraphRows as $row) {
                         <td><?php echo htmlspecialchars($test['node_id']); ?></td>
                         <td><?php echo ucfirst($test['node_type']); ?></td>
                         <td><?php echo getStatusBadge($test['connection_status']); ?></td>
-                        <td><?php echo $test['rssi_dbm']; ?> dBm</td>
-                        <td><?php echo $test['snr_db']; ?> dB</td>
-                        <td><?php echo $test['packet_received']; ?>/<?php echo $test['packet_sent']; ?></td>
-                        <td><?php echo number_format($test['packet_success_rate'], 2); ?>%</td>
+                        <td><?php echo connectivityDisplayNumber($test['rssi_dbm'], 2, ' dBm'); ?></td>
+                        <td><?php echo connectivityDisplayNumber($test['snr_db'], 2, ' dB'); ?></td>
+                        <td><?php echo $test['packet_received'] === null || $test['packet_sent'] === null ? 'N/A' : htmlspecialchars($test['packet_received'] . '/' . $test['packet_sent']); ?></td>
+                        <td><?php echo connectivityDisplayNumber($test['packet_success_rate'], 2, '%'); ?></td>
                         <td class="text-end text-nowrap table-action-buttons">
                             <button class="btn btn-sm btn-outline-primary" onclick="viewConnectivity(<?php echo $test['id']; ?>)">
                                 <i class="fas fa-eye"></i>
@@ -694,21 +715,21 @@ foreach ($connectivityGraphRows as $row) {
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">RSSI (dBm)</label>
-                            <input type="number" step="0.1" class="form-control" name="rssi_dbm" required>
+                            <input type="number" step="0.1" class="form-control" name="rssi_dbm">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">SNR (dB)</label>
-                            <input type="number" step="0.1" class="form-control" name="snr_db" required>
+                            <input type="number" step="0.1" class="form-control" name="snr_db">
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Packet Sent</label>
-                            <input type="number" class="form-control" name="packet_sent" required>
+                            <input type="number" class="form-control" name="packet_sent">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Packet Received</label>
-                            <input type="number" class="form-control" name="packet_received" required>
+                            <input type="number" class="form-control" name="packet_received">
                         </div>
                     </div>
                     <div class="mb-3">
@@ -781,7 +802,7 @@ function connectivityRow(id) {
 
 function escapeHtml(value) {
     if (value === null || value === undefined || value === '') {
-        return '-';
+        return 'N/A';
     }
 
     return $('<div>').text(value).html();
@@ -837,7 +858,7 @@ var emptyChartPlugin = {
                 if (value && typeof value === 'object') {
                     return Number.isFinite(Number(value.x)) || Number.isFinite(Number(value.y));
                 }
-                return Number(value) !== 0 && Number.isFinite(Number(value));
+                return value !== null && value !== undefined && Number.isFinite(Number(value));
             });
         });
 
@@ -866,7 +887,7 @@ function chartPluginList(includeLabels) {
 function percentTooltip(label) {
     return function(context) {
         var parsedValue = context.parsed.x !== undefined ? context.parsed.x : (context.parsed.y !== undefined ? context.parsed.y : context.raw);
-        return label + ': ' + Number(parsedValue || 0).toFixed(2) + '%';
+        return label + ': ' + (parsedValue === null || parsedValue === undefined || !Number.isFinite(Number(parsedValue)) ? 'N/A' : Number(parsedValue).toFixed(2) + '%');
     };
 }
 
@@ -993,10 +1014,15 @@ new Chart(document.getElementById('nodeQualityChart').getContext('2d'), {
                 callbacks: {
                     label: function(context) {
                         var nodeIndex = context.dataIndex;
+                        var formatMetric = function(value, unit) {
+                            return value === null || value === undefined || !Number.isFinite(Number(value))
+                                ? 'N/A'
+                                : Number(value).toFixed(2) + unit;
+                        };
                         var parts = [
-                            context.dataset.label + ': ' + Number(context.raw || 0).toFixed(2) + '%',
-                            'Avg RSSI: ' + (connectivityAnalysis.nodeRssi[nodeIndex] !== undefined ? connectivityAnalysis.nodeRssi[nodeIndex] : 0) + ' dBm',
-                            'Avg SNR: ' + (connectivityAnalysis.nodeSnr[nodeIndex] !== undefined ? connectivityAnalysis.nodeSnr[nodeIndex] : 0) + ' dB'
+                            context.dataset.label + ': ' + formatMetric(context.raw, '%'),
+                            'Avg RSSI: ' + formatMetric(connectivityAnalysis.nodeRssi[nodeIndex], ' dBm'),
+                            'Avg SNR: ' + formatMetric(connectivityAnalysis.nodeSnr[nodeIndex], ' dB')
                         ];
                         return parts;
                     }
@@ -1307,8 +1333,11 @@ function renderConnectivityNetwork() {
                 id: nodeKey,
                 type: row.nodeType || '-',
                 count: 0,
+                successCount: 0,
                 successTotal: 0,
+                rssiCount: 0,
                 rssiTotal: 0,
+                snrCount: 0,
                 snrTotal: 0,
                 locationCounts: {},
                 statusCounts: {
@@ -1319,9 +1348,18 @@ function renderConnectivityNetwork() {
             };
         }
         nodes[nodeKey].count += 1;
-        nodes[nodeKey].successTotal += Number(row.success || 0);
-        nodes[nodeKey].rssiTotal += Number(row.rssi || 0);
-        nodes[nodeKey].snrTotal += Number(row.snr || 0);
+        if (row.success !== null && row.success !== undefined && Number.isFinite(Number(row.success))) {
+            nodes[nodeKey].successTotal += Number(row.success);
+            nodes[nodeKey].successCount += 1;
+        }
+        if (row.rssi !== null && row.rssi !== undefined && Number.isFinite(Number(row.rssi))) {
+            nodes[nodeKey].rssiTotal += Number(row.rssi);
+            nodes[nodeKey].rssiCount += 1;
+        }
+        if (row.snr !== null && row.snr !== undefined && Number.isFinite(Number(row.snr))) {
+            nodes[nodeKey].snrTotal += Number(row.snr);
+            nodes[nodeKey].snrCount += 1;
+        }
         nodes[nodeKey].locationCounts[locationKey] = (nodes[nodeKey].locationCounts[locationKey] || 0) + 1;
         if (nodes[nodeKey].statusCounts[row.status] !== undefined) {
             nodes[nodeKey].statusCounts[row.status] += 1;
@@ -1349,9 +1387,9 @@ function renderConnectivityNetwork() {
         var spread = Math.min(width, height) * (0.15 + ((index % 3) * 0.035));
         node.x = Math.max(34, Math.min(width - 34, location.x + Math.cos(angle) * spread));
         node.y = Math.max(34, Math.min(height - 34, location.y + Math.sin(angle) * spread));
-        node.avgSuccess = node.successTotal / Math.max(1, node.count);
-        node.avgRssi = node.rssiTotal / Math.max(1, node.count);
-        node.avgSnr = node.snrTotal / Math.max(1, node.count);
+        node.avgSuccess = node.successCount > 0 ? node.successTotal / node.successCount : null;
+        node.avgRssi = node.rssiCount > 0 ? node.rssiTotal / node.rssiCount : null;
+        node.avgSnr = node.snrCount > 0 ? node.snrTotal / node.snrCount : null;
         node.status = ['connected', 'intermittent', 'disconnected'].sort(function(a, b) {
             return node.statusCounts[b] - node.statusCounts[a];
         })[0];
@@ -1424,7 +1462,7 @@ function renderConnectivityNetwork() {
         ctx.font = '700 10px Segoe UI, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(Math.round(node.avgSuccess) + '%', node.x, node.y);
+        ctx.fillText(node.avgSuccess === null ? 'N/A' : Math.round(node.avgSuccess) + '%', node.x, node.y);
 
         drawNetworkLabel(ctx, node.id, node.x, node.y + radius + 16, '#0f172a', 'rgba(255, 255, 255, 0.92)');
     });

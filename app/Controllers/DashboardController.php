@@ -65,11 +65,11 @@ class DashboardController {
         
         // Average latency
         $result = fetchOne("SELECT AVG(latency_ms) as avg FROM latency_tests WHERE latency_ms IS NOT NULL");
-        $stats['avg_latency'] = $result['avg'] ? round($result['avg'], 2) : 0;
+        $stats['avg_latency'] = $result['avg'] !== null ? round($result['avg'], 2) : null;
         
         // Average throughput
         $result = fetchOne("SELECT AVG(throughput_kbps) as avg FROM throughput_tests WHERE throughput_kbps IS NOT NULL");
-        $stats['avg_throughput'] = $result['avg'] ? round($result['avg'], 2) : 0;
+        $stats['avg_throughput'] = $result['avg'] !== null ? round($result['avg'], 2) : null;
         
         // Average RSSI
         $result = fetchOne("SELECT AVG(rssi_dbm) as avg FROM (
@@ -79,7 +79,7 @@ class DashboardController {
             UNION ALL
             SELECT rssi_before_dbm as rssi_dbm FROM signal_penetration_tests
         ) as all_rssi WHERE rssi_dbm IS NOT NULL");
-        $stats['avg_rssi'] = $result['avg'] ? round($result['avg'], 2) : 0;
+        $stats['avg_rssi'] = $result['avg'] !== null ? round($result['avg'], 2) : null;
         
         // Average SNR
         $result = fetchOne("SELECT AVG(snr_db) as avg FROM (
@@ -89,7 +89,7 @@ class DashboardController {
             UNION ALL
             SELECT snr_before_db as snr_db FROM signal_penetration_tests
         ) as all_snr WHERE snr_db IS NOT NULL");
-        $stats['avg_snr'] = $result['avg'] ? round($result['avg'], 2) : 0;
+        $stats['avg_snr'] = $result['avg'] !== null ? round($result['avg'], 2) : null;
         
         // Average packet loss
         $result = fetchOne("SELECT AVG(packet_loss_percent) as avg FROM (
@@ -101,11 +101,11 @@ class DashboardController {
             UNION ALL
             SELECT packet_loss_percent FROM interference_tests
         ) as all_loss WHERE packet_loss_percent IS NOT NULL");
-        $stats['avg_packet_loss'] = $result['avg'] ? round($result['avg'], 2) : 0;
+        $stats['avg_packet_loss'] = $result['avg'] !== null ? round($result['avg'], 2) : null;
         
         // Average power consumption
         $result = fetchOne("SELECT AVG(power_w) as avg FROM power_consumption_tests WHERE power_w IS NOT NULL");
-        $stats['avg_power'] = $result['avg'] ? round($result['avg'], 2) : 0;
+        $stats['avg_power'] = $result['avg'] !== null ? round($result['avg'], 2) : null;
         
         // Determine system status
         $stats['system_status'] = determineSystemStatus($stats);

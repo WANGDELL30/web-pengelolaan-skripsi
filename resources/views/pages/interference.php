@@ -34,7 +34,7 @@ $pageConfig = [
     ],
     'calculate' => function ($data) {
         return [
-            'packet_loss_percent' => calculatePacketLoss((int) $data['packet_sent'], (int) $data['packet_received']),
+            'packet_loss_percent' => calculatePacketLoss($data['packet_sent'] ?? null, $data['packet_received'] ?? null),
             'throughput_degradation_percent' => null,
             'latency_increase_percent' => null,
             'snr_degradation_db' => null,

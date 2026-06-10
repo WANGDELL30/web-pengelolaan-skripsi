@@ -23,8 +23,8 @@ $pageConfig = [
         ['name' => 'obstacle_type', 'label' => 'Obstacle Type', 'type' => 'select', 'options' => ['wall', 'building', 'trees', 'vehicle', 'hangar', 'hill', 'none']],
         ['name' => 'condition_type', 'label' => 'Condition', 'type' => 'select', 'options' => ['LOS', 'NLOS']],
         ['name' => 'distance_meter', 'label' => 'Distance (m)', 'type' => 'number', 'step' => '0.01'],
-        ['name' => 'rssi_before_dbm', 'label' => 'RSSI Before (dBm)', 'type' => 'number', 'step' => '0.01', 'required' => true],
-        ['name' => 'rssi_after_dbm', 'label' => 'RSSI After (dBm)', 'type' => 'number', 'step' => '0.01', 'required' => true],
+        ['name' => 'rssi_before_dbm', 'label' => 'RSSI Before (dBm)', 'type' => 'number', 'step' => '0.01'],
+        ['name' => 'rssi_after_dbm', 'label' => 'RSSI After (dBm)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'snr_before_db', 'label' => 'SNR Before (dB)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'snr_after_db', 'label' => 'SNR After (dB)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'packet_sent', 'label' => 'Packet Sent', 'type' => 'number', 'integer' => true, 'default' => 1000],
@@ -33,11 +33,14 @@ $pageConfig = [
         ['name' => 'notes', 'label' => 'Notes', 'type' => 'textarea'],
     ],
     'calculate' => function ($data) {
-        $rssiLoss = round((float) $data['rssi_before_dbm'] - (float) $data['rssi_after_dbm'], 2);
+        $hasRssi = is_numeric($data['rssi_before_dbm'] ?? null) && is_numeric($data['rssi_after_dbm'] ?? null);
+        $hasSnr = is_numeric($data['snr_before_db'] ?? null) && is_numeric($data['snr_after_db'] ?? null);
+        $rssiLoss = $hasRssi ? round((float) $data['rssi_before_dbm'] - (float) $data['rssi_after_dbm'], 2) : null;
+
         return [
             'rssi_loss' => $rssiLoss,
-            'snr_loss' => round((float) $data['snr_before_db'] - (float) $data['snr_after_db'], 2),
-            'packet_loss_percent' => calculatePacketLoss((int) $data['packet_sent'], (int) $data['packet_received']),
+            'snr_loss' => $hasSnr ? round((float) $data['snr_before_db'] - (float) $data['snr_after_db'], 2) : null,
+            'packet_loss_percent' => calculatePacketLoss($data['packet_sent'] ?? null, $data['packet_received'] ?? null),
             'penetration_loss_db' => $rssiLoss,
         ];
     },

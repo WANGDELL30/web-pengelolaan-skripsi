@@ -129,6 +129,18 @@ switch ($page) {
         $title = 'Analysis and Discussion';
         $content = renderView(__DIR__ . '/../resources/views/pages/analysis.php');
         break;
+
+    case 'mesh-simulation':
+        $title = 'Mesh Topology Simulation';
+        $subtitle = 'WiFi HaLow expansion planning';
+        $content = renderView(__DIR__ . '/../resources/views/pages/mesh_simulation.php');
+        break;
+
+    case 'jamming-simulation':
+        $title = 'Jamming / Interference Simulation';
+        $subtitle = 'Safe RF interference impact model';
+        $content = renderView(__DIR__ . '/../resources/views/pages/jamming_simulation.php');
+        break;
     
     case 'reports':
         $title = 'Generated Reports';
