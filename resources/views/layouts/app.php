@@ -21,6 +21,7 @@ $roleBadgeClass = $canManageProject ? 'danger' : ($currentRole === 'viewer' ? 's
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script>
         if (window.Chart) {
             Chart.defaults.color = '#4b5563';

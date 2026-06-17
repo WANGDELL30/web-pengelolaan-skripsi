@@ -164,7 +164,6 @@ $(document).ready(function() {
 
     if (sidebar && sidebarResizer) {
         sidebarResizer.addEventListener('pointerdown', function(event) {
-            return;
             if (window.innerWidth < 768 || document.body.classList.contains('sidebar-hidden')) return;
 
             event.preventDefault();
@@ -252,12 +251,15 @@ $(document).ready(function() {
         }
     });
     
-    // Smooth scroll for anchor links
-    $('a[href*="#"]').on('click', function(e) {
-        e.preventDefault();
-        $('html, body').animate({
-            scrollTop: $($(this).attr('href')).offset().top - 70
-        }, 500, 'swing');
+    // Smooth scroll for anchor links (hanya untuk anchor dalam halaman yang sama)
+    $('a[href^="#"]:not([href="#"])').on('click', function(e) {
+        var target = $(this).attr('href');
+        if ($(target).length) {
+            e.preventDefault();
+            $('html, body').animate({
+                scrollTop: $(target).offset().top - 70
+            }, 500, 'swing');
+        }
     });
     
     // Form validation
@@ -468,15 +470,61 @@ function determineRangeStatus(snr, packetLoss) {
 }
 
 /**
- * Export data
+ * Export data — mengarahkan ke export_excel.php yang sebenarnya
  */
 function exportData(type, format) {
-    showToast('Mengekspor data ' + type + ' dalam format ' + format.toUpperCase() + '...', 'info');
-    
-    // Simulate export process
-    setTimeout(function() {
-        showToast('Data berhasil diekspor!', 'success');
-    }, 1500);
+    // Map nama tipe ke nama tabel database
+    var tableMap = {
+        'connectivity':  'connectivity_tests',
+        'connectivity_tests': 'connectivity_tests',
+        'range':         'range_tests',
+        'range_tests':   'range_tests',
+        'penetration':   'signal_penetration_tests',
+        'signal_penetration_tests': 'signal_penetration_tests',
+        'latency':       'latency_tests',
+        'latency_tests': 'latency_tests',
+        'throughput':    'throughput_tests',
+        'throughput_tests': 'throughput_tests',
+        'interference':  'interference_tests',
+        'interference_tests': 'interference_tests',
+        'camera':        'slave_camera_tests',
+        'slave_camera_tests': 'slave_camera_tests',
+        'power':         'power_consumption_tests',
+        'power_consumption_tests': 'power_consumption_tests',
+        'command':       'command_execution_tests',
+        'command_execution_tests': 'command_execution_tests',
+        'text_message':  'text_message_logs',
+        'text_message_logs': 'text_message_logs',
+        'response':      'response_time_tests',
+        'response_time_tests': 'response_time_tests',
+        'encryption':    'encryption_tests',
+        'encryption_tests': 'encryption_tests',
+        'analysis':      'analysis_key_metrics',
+        'reports':       'generated_reports',
+        'generated_reports': 'generated_reports'
+    };
+
+    var table = tableMap[type] || type;
+
+    if (format === 'xlsx' || format === 'excel') {
+        showToast('Mengekspor ' + type + ' sebagai Excel...', 'info');
+        window.location.href = 'export_excel.php?table=' + encodeURIComponent(table);
+    } else if (format === 'csv') {
+        // Cari tabel di halaman dan export sebagai CSV
+        var tableEl = $('table[id]').first();
+        if (tableEl.length) {
+            exportCSV(tableEl.attr('id'), type + '_export.csv');
+            showToast('Mengekspor ' + type + ' sebagai CSV...', 'info');
+        } else {
+            // Fallback ke Excel jika tidak ada tabel di halaman
+            showToast('Mengekspor ' + type + ' sebagai Excel...', 'info');
+            window.location.href = 'export_excel.php?table=' + encodeURIComponent(table);
+        }
+    } else {
+        // Format tidak dikenal, arahkan ke Excel sebagai default
+        showToast('Mengekspor ' + type + '...', 'info');
+        window.location.href = 'export_excel.php?table=' + encodeURIComponent(table);
+    }
 }
 
 /**
@@ -564,18 +612,52 @@ function initializeDataTables() {
 }
 
 /**
- * Generate report
+ * Generate report — menggunakan jsPDF UMD (window.jspdf.jsPDF)
  */
 function generateReport() {
     var content = document.getElementById('report-content');
-    if (content) {
-        html2canvas(content).then(function(canvas) {
-            var imgData = canvas.toDataURL('image/png');
-            var doc = new jsPDF();
-            doc.addImage(imgData, 'PNG', 10, 10, 190, 0);
-            doc.save('report.pdf');
-        });
+    if (!content) {
+        showToast('Elemen report-content tidak ditemukan.', 'error');
+        return;
     }
+
+    // Pastikan jsPDF sudah ter-load (format UMD: window.jspdf.jsPDF)
+    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+        showToast('Library jsPDF belum siap. Coba muat ulang halaman.', 'error');
+        return;
+    }
+
+    showToast('Membuat PDF, mohon tunggu...', 'info');
+
+    html2canvas(content, { scale: 2, useCORS: true }).then(function(canvas) {
+        var imgData = canvas.toDataURL('image/png');
+        var jsPDF = window.jspdf.jsPDF;
+        var doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+        var pageWidth  = doc.internal.pageSize.getWidth();
+        var pageHeight = doc.internal.pageSize.getHeight();
+        var margin     = 10;
+        var imgWidth   = pageWidth - margin * 2;
+        var imgHeight  = (canvas.height * imgWidth) / canvas.width;
+
+        // Jika lebih tinggi dari satu halaman, potong menjadi beberapa halaman
+        var yPosition = margin;
+        var remainingHeight = imgHeight;
+
+        while (remainingHeight > 0) {
+            doc.addImage(imgData, 'PNG', margin, yPosition, imgWidth, imgHeight);
+            remainingHeight -= (pageHeight - margin * 2);
+            if (remainingHeight > 0) {
+                doc.addPage();
+                yPosition = margin - (imgHeight - remainingHeight);
+            }
+        }
+
+        doc.save('laporan-wifi-halow-' + new Date().toISOString().slice(0, 10) + '.pdf');
+        showToast('PDF berhasil dibuat!', 'success');
+    }).catch(function(err) {
+        showToast('Gagal membuat PDF: ' + err.message, 'error');
+    });
 }
 
 /**
