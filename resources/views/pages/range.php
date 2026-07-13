@@ -98,6 +98,12 @@ $pageConfig = [
     'description' => 'Input dan analisis data pengujian jangkauan WiFi HaLow.',
     'table' => 'range_tests',
     'order' => 'test_date DESC, created_at DESC',
+    'chart_metrics' => [
+        ['field' => 'rssi_dbm', 'label' => 'RSSI', 'unit' => 'dBm', 'type' => 'line'],
+        ['field' => 'snr_db', 'label' => 'SNR', 'unit' => 'dB', 'type' => 'line'],
+        ['field' => 'fspl_db', 'label' => 'FSPL', 'unit' => 'dB', 'type' => 'bar'],
+        ['field' => 'bitrate_kbps', 'label' => 'Bitrate', 'unit' => 'kbps', 'type' => 'line'],
+    ],
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'location_name', 'label' => 'Location Name', 'required' => true],
@@ -1173,51 +1179,30 @@ $poorCount = max(0, count($spotPoints) - $goodCount - $moderateCount);
         border: 1px solid #d8dee8;
         border-radius: 10px;
         overflow: hidden;
-        background:
-            radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.28), rgba(15, 23, 42, 0) 40%),
-            #0f172a;
-        perspective: 1100px;
-        perspective-origin: 50% 28%;
-        isolation: isolate;
-    }
-
-    .range-map-shell::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        z-index: 1;
-        pointer-events: none;
-        opacity: 0;
-        background: linear-gradient(180deg, rgba(15, 23, 42, 0.58), rgba(15, 23, 42, 0) 34%);
-        transition: opacity 0.25s ease;
-    }
-
-    .range-map-shell.is-3d::before {
-        opacity: 1;
+        background: #e8e4df;
     }
 
     .range-map-plane {
         position: absolute;
         inset: 0;
         z-index: 0;
-        transform-origin: 50% 58%;
-        transform-style: preserve-3d;
-        transition: transform 0.35s ease, filter 0.35s ease;
+        transform-origin: center center;
+        transition: transform 0.4s ease-out;
         will-change: transform;
     }
 
     .range-map-shell.is-3d .range-map-plane {
-        transform:
-            rotateX(var(--range-map-tilt, 50deg))
-            rotateZ(var(--range-map-bearing, 0deg))
-            scale(1.12);
-        filter: saturate(1.08) contrast(1.06);
+        transform: scale(1.05);
+    }
+
+    .range-map-shell.is-3d {
+        box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.3);
     }
 
     .range-satellite-map {
         position: absolute;
         inset: 0;
-        z-index: 0;
+        z-index: auto;
         width: 100%;
         height: 100%;
         min-height: 100%;
@@ -1228,7 +1213,7 @@ $poorCount = max(0, count($spotPoints) - $goodCount - $moderateCount);
     .range-map-line-overlay {
         position: absolute;
         inset: 0;
-        z-index: 2;
+        z-index: 450;
         width: 100%;
         height: 100%;
         pointer-events: none;
@@ -1239,13 +1224,28 @@ $poorCount = max(0, count($spotPoints) - $goodCount - $moderateCount);
         top: 14px;
         left: 14px;
         z-index: 4;
-        width: min(330px, calc(100% - 28px));
-        padding: 12px;
+        width: 200px;
+        max-width: calc(100% - 28px);
+        padding: 10px;
         border: 1px solid rgba(226, 232, 240, 0.82);
         border-radius: 10px;
-        background: rgba(255, 255, 255, 0.92);
-        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
+        background: rgba(255, 255, 255, 0.88);
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
         backdrop-filter: blur(8px);
+        transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .range-map-toolbar:hover {
+        transform: scale(1.02);
+    }
+
+    .range-map-toolbar.collapsed {
+        width: auto;
+        padding: 8px 12px;
+    }
+
+    .range-map-toolbar.collapsed .range-map-toolbar-content {
+        display: none;
     }
 
     .range-map-toolbar-title {
@@ -1254,33 +1254,46 @@ $poorCount = max(0, count($spotPoints) - $goodCount - $moderateCount);
         justify-content: space-between;
         gap: 10px;
         color: #0f172a;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 800;
         text-transform: uppercase;
+        cursor: pointer;
+    }
+
+    .range-map-toolbar-content {
+        margin-top: 10px;
     }
 
     .range-map-toolbar label {
         display: block;
-        margin-top: 10px;
+        margin-top: 8px;
         color: #475569;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
     }
 
     .range-map-zoom-controls {
         display: grid;
-        grid-template-columns: 44px 44px 1fr;
-        gap: 8px;
-        margin-top: 12px;
+        grid-template-columns: 36px 36px 1fr;
+        gap: 6px;
+        margin-top: 8px;
     }
 
     .range-map-zoom-controls .btn {
-        min-height: 34px;
+        min-height: 30px;
+        font-size: 12px;
         font-weight: 800;
+        padding: 4px 8px;
     }
 
     .range-map-toolbar .form-range {
         margin: 2px 0 0;
+        height: 4px;
+    }
+
+    .range-map-toolbar .form-range::-webkit-slider-thumb {
+        width: 14px;
+        height: 14px;
     }
 
     .range-map-state {
@@ -1362,10 +1375,10 @@ $poorCount = max(0, count($spotPoints) - $goodCount - $moderateCount);
     }
 
     .range-map-marker.master {
-        width: 22px;
-        height: 22px;
+        width: 24px;
+        height: 24px;
         border-radius: 6px;
-        background: #1e3c72;
+        background: linear-gradient(135deg, #1e3c72, #2a5298);
         transform: rotate(45deg);
     }
 
@@ -1387,9 +1400,16 @@ $poorCount = max(0, count($spotPoints) - $goodCount - $moderateCount);
         z-index: 20;
     }
 
-    .range-map-shell.is-3d .range-map-marker,
+    .range-map-shell.is-3d .range-map-marker {
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .range-map-shell.is-3d .range-map-marker.master {
+        box-shadow: 0 10px 25px rgba(30, 60, 114, 0.5);
+    }
+
     .range-map-shell.is-3d .range-map-distance-label {
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.38);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
     }
 
     .spot-beam-legend {
@@ -1427,6 +1447,11 @@ $poorCount = max(0, count($spotPoints) - $goodCount - $moderateCount);
             top: 10px;
             left: 10px;
             width: calc(100% - 20px);
+            max-width: none;
+        }
+
+        .range-map-toolbar.collapsed {
+            width: auto;
         }
 
         .range-map-floating-capture {
@@ -1492,21 +1517,21 @@ $poorCount = max(0, count($spotPoints) - $goodCount - $moderateCount);
             <div id="rangeMapCaptureMessage" class="range-map-capture-message" role="status"></div>
             <div id="rangeMapShell" class="range-map-shell">
                 <div class="range-map-toolbar" data-map-capture-ignore="true">
-                    <div class="range-map-toolbar-title">
+                    <div class="range-map-toolbar-title" id="rangeMapToolbarToggle">
                         <span><i class="fas fa-cube"></i> Kontrol 3D</span>
                         <span class="badge bg-primary" id="rangeMapModeBadge">2D</span>
                     </div>
-                    <div class="range-map-zoom-controls" aria-label="Kontrol zoom map">
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="rangeMapZoomIn" title="Zoom in">+</button>
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="rangeMapZoomOut" title="Zoom out">-</button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm" id="rangeMapFit" title="Tampilkan semua titik">
-                            <i class="fas fa-expand"></i> Fit
-                        </button>
+                    <div class="range-map-toolbar-content">
+                        <div class="range-map-zoom-controls" aria-label="Kontrol zoom map">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="rangeMapZoomIn" title="Zoom in">+</button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="rangeMapZoomOut" title="Zoom out">-</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="rangeMapFit" title="Tampilkan semua titik">
+                                <i class="fas fa-expand"></i> Fit
+                            </button>
+                        </div>
+                        <label for="rangeMapTerrain">Terrain overlay</label>
+                        <input type="range" class="form-range" id="rangeMapTerrain" min="0" max="50" step="5" value="30">
                     </div>
-                    <label for="rangeMapTilt">Tilt kamera</label>
-                    <input type="range" class="form-range" id="rangeMapTilt" min="0" max="62" step="1" value="48">
-                    <label for="rangeMapBearing">Rotasi pandang</label>
-                    <input type="range" class="form-range" id="rangeMapBearing" min="-45" max="45" step="1" value="0">
                 </div>
                 <div class="range-map-state" id="rangeMapState" data-map-capture-ignore="true">
                     Mode 2D Satellite. Geser map atau pakai mouse wheel/tombol +/- untuk mengatur posisi gambar.
@@ -1595,6 +1620,8 @@ $(function() {
         var zoomInButton = document.getElementById('rangeMapZoomIn');
         var zoomOutButton = document.getElementById('rangeMapZoomOut');
         var fitButton = document.getElementById('rangeMapFit');
+        var toolbarToggle = document.getElementById('rangeMapToolbarToggle');
+        var toolbar = document.querySelector('.range-map-toolbar');
         var modeBadge = document.getElementById('rangeMapModeBadge');
         var stateText = document.getElementById('rangeMapState');
         var floatingCapture = document.getElementById('rangeMapFloatingCapture');
@@ -1612,11 +1639,19 @@ $(function() {
             wheelPxPerZoomLevel: 90
         });
 
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        // Base tile layer
+        var baseLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 18,
             maxNativeZoom: 18,
             crossOrigin: true,
             attribution: 'Tiles &copy; Esri'
+        }).addTo(map);
+
+        // Terrain overlay for 3D effect
+        var terrainOverlay = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/terrain-lines/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            opacity: 0,
+            attribution: ''
         }).addTo(map);
 
         L.control.scale({
@@ -1894,7 +1929,7 @@ $(function() {
 
         var map3d = {
             enabled: false,
-            tilt: Number(tiltInput && tiltInput.value) || 48,
+            tilt: Number(tiltInput && tiltInput.value) || 50,
             bearing: Number(bearingInput && bearingInput.value) || 0
         };
         var mapVisibleInViewport = false;
@@ -1910,8 +1945,6 @@ $(function() {
                 return;
             }
 
-            shell.style.setProperty('--range-map-tilt', map3d.tilt + 'deg');
-            shell.style.setProperty('--range-map-bearing', map3d.bearing + 'deg');
             shell.classList.toggle('is-3d', map3d.enabled);
 
             if (mode2dButton) {
@@ -1928,17 +1961,23 @@ $(function() {
             }
 
             if (stateText) {
+                var terrainOpacity = terrainOverlay ? terrainOverlay.options.opacity : 0;
                 stateText.textContent = (map3d.enabled ? 'Mode 3D Satellite' : 'Mode 2D Satellite')
                     + ' | Center ' + formatCenter()
                     + ' | Zoom ' + map.getZoom()
-                    + (map3d.enabled ? ' | Tilt ' + map3d.tilt + 'deg | Rotasi ' + map3d.bearing + 'deg' : '')
-                    + ' | Mouse wheel aktif, batas aman zoom 18';
+                    + ' | Terrain ' + Math.round(terrainOpacity * 100) + '%'
+                    + ' | Mouse wheel aktif';
             }
         }
 
         function setMap3dMode(enabled) {
             map3d.enabled = enabled;
             updateMap3dState();
+
+            // Toggle terrain overlay opacity for 3D effect
+            if (terrainOverlay) {
+                terrainOverlay.setOpacity(enabled ? 0.3 : 0);
+            }
 
             setTimeout(function() {
                 map.invalidateSize();
@@ -1990,7 +2029,7 @@ $(function() {
                 return;
             }
 
-            map.closePopup();
+            // Keep an open Leaflet popup visible so point details are included in the exported image.
             map.invalidateSize();
             updateMap3dState();
             redrawRangeLineOverlay();
@@ -2022,7 +2061,7 @@ $(function() {
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
-                    showCaptureMessage('Gambar map berhasil diunduh sesuai posisi center, zoom, tilt, dan rotasi saat ini.', 'success');
+                    showCaptureMessage('Gambar map berhasil diunduh sesuai posisi center, zoom, tilt, rotasi, dan popup titik yang sedang terbuka.', 'success');
                 }).catch(function(error) {
                     showCaptureMessage('Gagal mengambil gambar map. Coba tunggu tile satelit selesai loading, lalu ulangi. Detail: ' + (error && error.message ? error.message : 'capture error'), 'error');
                 }).finally(function() {
@@ -2051,6 +2090,8 @@ $(function() {
             });
         }
 
+        var terrainInput = document.getElementById('rangeMapTerrain');
+
         if (tiltInput) {
             tiltInput.addEventListener('input', function() {
                 map3d.tilt = Number(tiltInput.value) || 0;
@@ -2062,6 +2103,15 @@ $(function() {
             bearingInput.addEventListener('input', function() {
                 map3d.bearing = Number(bearingInput.value) || 0;
                 setMap3dMode(true);
+            });
+        }
+
+        if (terrainInput) {
+            terrainInput.addEventListener('input', function() {
+                var opacity = Number(terrainInput.value) / 100;
+                if (terrainOverlay) {
+                    terrainOverlay.setOpacity(opacity);
+                }
             });
         }
 
@@ -2084,7 +2134,9 @@ $(function() {
         }
 
         document.querySelectorAll('.range-map-capture-btn').forEach(function(button) {
-            button.addEventListener('click', function() {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
                 captureCurrentMap(button);
             });
         });
@@ -2121,6 +2173,15 @@ $(function() {
         }
 
         window.addEventListener('scroll', updateFloatingCapture, { passive: true });
+
+        if (toolbarToggle && toolbar) {
+            toolbarToggle.addEventListener('click', function(e) {
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') {
+                    return;
+                }
+                toolbar.classList.toggle('collapsed');
+            });
+        }
     }
 
     function parseGps(value, min, max) {

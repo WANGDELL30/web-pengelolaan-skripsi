@@ -33,6 +33,7 @@ function connectivityPayload($source) {
         'test_date' => sanitize($source['test_date'] ?? ''),
         'location_name' => sanitize($source['location_name'] ?? ''),
         'environment_type' => sanitize($source['environment_type'] ?? ''),
+        'distance_meter' => connectivityNullableNumber($source, 'distance_meter'),
         'node_id' => sanitize($source['node_id'] ?? ''),
         'node_type' => sanitize($source['node_type'] ?? ''),
         'connection_status' => sanitize($source['connection_status'] ?? ''),
@@ -72,13 +73,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data = connectivityPayload($_POST);
             query(
                 "UPDATE connectivity_tests SET
-                    test_date = ?, location_name = ?, environment_type = ?, node_id = ?, node_type = ?,
+                    test_date = ?, location_name = ?, environment_type = ?, distance_meter = ?, node_id = ?, node_type = ?,
                     connection_status = ?, rssi_dbm = ?, snr_db = ?, packet_sent = ?, packet_received = ?,
                     packet_lost = ?, packet_loss_percent = ?, packet_success_rate = ?,
                     test_duration_second = ?, notes = ?
                 WHERE id = ?",
                 [
-                    $data['test_date'], $data['location_name'], $data['environment_type'], $data['node_id'], $data['node_type'],
+                    $data['test_date'], $data['location_name'], $data['environment_type'], $data['distance_meter'], $data['node_id'], $data['node_type'],
                     $data['connection_status'], $data['rssi_dbm'], $data['snr_db'], $data['packet_sent'], $data['packet_received'],
                     $data['packet_lost'], $data['packet_loss_percent'], $data['packet_success_rate'],
                     $data['test_duration_second'], $data['notes'], $recordId,
@@ -89,13 +90,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data = connectivityPayload($_POST);
             query(
                 "INSERT INTO connectivity_tests (
-                    test_date, location_name, environment_type, node_id, node_type,
+                    test_date, location_name, environment_type, distance_meter, node_id, node_type,
                     connection_status, rssi_dbm, snr_db, packet_sent, packet_received,
                     packet_lost, packet_loss_percent, packet_success_rate,
                     test_duration_second, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
-                    $data['test_date'], $data['location_name'], $data['environment_type'], $data['node_id'], $data['node_type'],
+                    $data['test_date'], $data['location_name'], $data['environment_type'], $data['distance_meter'], $data['node_id'], $data['node_type'],
                     $data['connection_status'], $data['rssi_dbm'], $data['snr_db'], $data['packet_sent'], $data['packet_received'],
                     $data['packet_lost'], $data['packet_loss_percent'], $data['packet_success_rate'],
                     $data['test_duration_second'], $data['notes'],
@@ -284,7 +285,7 @@ foreach ($connectivityGraphRows as $row) {
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Environment Type</label>
                                 <select class="form-select" name="environment_type" required>
                                     <option value="">Select environment</option>
@@ -296,7 +297,11 @@ foreach ($connectivityGraphRows as $row) {
                                     <option value="outdoor">Outdoor</option>
                                 </select>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Distance (m)</label>
+                                <input type="number" step="0.01" class="form-control" name="distance_meter" placeholder="e.g., 100">
+                            </div>
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Node Type</label>
                                 <select class="form-select" name="node_type" required>
                                     <option value="">Select type</option>
@@ -467,12 +472,12 @@ foreach ($connectivityGraphRows as $row) {
                     <th>Date</th>
                     <th>Location</th>
                     <th>Environment</th>
+                    <th>Distance</th>
                     <th>Node</th>
                     <th>Type</th>
                     <th>Status</th>
                     <th>RSSI</th>
                     <th>SNR</th>
-                    <th>Packets</th>
                     <th>Success</th>
                     <th class="text-end">Aksi</th>
                 </tr>
@@ -486,12 +491,12 @@ foreach ($connectivityGraphRows as $row) {
                         <td><?php echo formatDate($test['test_date']); ?></td>
                         <td><?php echo htmlspecialchars($test['location_name']); ?></td>
                         <td><?php echo ucfirst($test['environment_type']); ?></td>
+                        <td><?php echo connectivityDisplayNumber($test['distance_meter'] ?? null, 2, ' m'); ?></td>
                         <td><?php echo htmlspecialchars($test['node_id']); ?></td>
                         <td><?php echo ucfirst($test['node_type']); ?></td>
                         <td><?php echo getStatusBadge($test['connection_status']); ?></td>
                         <td><?php echo connectivityDisplayNumber($test['rssi_dbm'], 2, ' dBm'); ?></td>
                         <td><?php echo connectivityDisplayNumber($test['snr_db'], 2, ' dB'); ?></td>
-                        <td><?php echo $test['packet_received'] === null || $test['packet_sent'] === null ? 'N/A' : htmlspecialchars($test['packet_received'] . '/' . $test['packet_sent']); ?></td>
                         <td><?php echo connectivityDisplayNumber($test['packet_success_rate'], 2, '%'); ?></td>
                         <td class="text-end text-nowrap table-action-buttons">
                             <button class="btn btn-sm btn-outline-primary" onclick="viewConnectivity(<?php echo $test['id']; ?>)">
@@ -627,6 +632,143 @@ foreach ($connectivityGraphRows as $row) {
     </div>
 </div>
 
+<?php
+// Build distance-based chart data for connectivity
+$connectivityDistanceData = [];
+$connectivityEnvironments = [];
+$connectivityByEnvironment = [];
+
+foreach ($connectivity_tests as $test) {
+    $env = $test['environment_type'] ?? 'unknown';
+    if ($env === null || $env === '') {
+        $env = 'unknown';
+    }
+    $connectivityEnvironments[$env] = true;
+    
+    $distance = $test['distance_meter'] ?? null;
+    if ($distance === null || !is_numeric($distance)) {
+        continue;
+    }
+    
+    if (!isset($connectivityByEnvironment[$env])) {
+        $connectivityByEnvironment[$env] = [];
+    }
+    $connectivityByEnvironment[$env][] = $test;
+}
+
+// Sort each environment by distance
+foreach ($connectivityByEnvironment as $env => &$envRows) {
+    usort($envRows, function ($a, $b) {
+        return (float) $a['distance_meter'] <=> (float) $b['distance_meter'];
+    });
+}
+unset($envRows);
+
+$connectivityEnvColors = [
+    'lapangan' => '#2563eb',
+    'hangar' => '#7c3aed',
+    'pantai' => '#0891b2',
+    'gunung' => '#16a34a',
+    'indoor' => '#d97706',
+    'outdoor' => '#dc2626',
+    'unknown' => '#64748b',
+];
+
+foreach ($connectivityEnvironments as $env => $dummy) {
+    $envRows = $connectivityByEnvironment[$env] ?? [];
+    if (empty($envRows)) {
+        continue;
+    }
+    
+    $distances = [];
+    $rssiValues = [];
+    $snrValues = [];
+    $successValues = [];
+    $lossValues = [];
+    
+    foreach ($envRows as $row) {
+        $distances[] = (float) $row['distance_meter'];
+        $rssiValues[] = is_numeric($row['rssi_dbm'] ?? null) ? (float) $row['rssi_dbm'] : null;
+        $snrValues[] = is_numeric($row['snr_db'] ?? null) ? (float) $row['snr_db'] : null;
+        $successValues[] = is_numeric($row['packet_success_rate'] ?? null) ? (float) $row['packet_success_rate'] : null;
+        $lossValues[] = is_numeric($row['packet_loss_percent'] ?? null) ? (float) $row['packet_loss_percent'] : null;
+    }
+    
+    $connectivityDistanceData[$env] = [
+        'distances' => $distances,
+        'rssi' => $rssiValues,
+        'snr' => $snrValues,
+        'success' => $successValues,
+        'loss' => $lossValues,
+        'color' => $connectivityEnvColors[$env] ?? '#64748b',
+        'count' => count($envRows),
+    ];
+}
+?>
+
+<?php if (!empty($connectivityDistanceData)): ?>
+<div class="content-section">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h4 class="mb-1"><i class="fas fa-ruler-horizontal"></i> Grafik Berbasis Jarak</h4>
+            <p class="text-muted mb-0">Analisis performa berdasarkan jarak (meter) dengan filter environment. Sumbut X menampilkan jarak, sumbu Y menampilkan nilai metrik.</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h6 class="m-0 font-weight-bold text-primary">Filter Environment</h6>
+                        <small class="text-muted">Pilih environment untuk menampilkan data spesifik atau gabungan</small>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-primary connectivity-distance-env-filter active" data-env="all">
+                            <i class="fas fa-globe"></i> Semua
+                        </button>
+                        <?php foreach (array_keys($connectivityDistanceData) as $env): ?>
+                            <button type="button" class="btn btn-sm btn-outline-secondary connectivity-distance-env-filter" data-env="<?php echo htmlspecialchars($env); ?>">
+                                <i class="fas fa-map-marker-alt"></i> <?php echo ucfirst(htmlspecialchars($env)); ?>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-6 mb-4">
+            <div class="card">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">RSSI vs Jarak</h6>
+                    <small class="text-muted">Hubungan antara jarak dan kekuatan sinyal (RSSI)</small>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container connectivity-distance-chart-container">
+                        <canvas id="connectivityDistanceRssiChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6 mb-4">
+            <div class="card">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Packet Loss vs Jarak</h6>
+                    <small class="text-muted">Hubungan antara jarak dan persentase packet loss</small>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container connectivity-distance-chart-container">
+                        <canvas id="connectivityDistanceLossChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="modal fade" id="connectivityViewModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
@@ -672,7 +814,7 @@ foreach ($connectivityGraphRows as $row) {
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Environment Type</label>
                             <select class="form-select" name="environment_type" required>
                                 <option value="">Select environment</option>
@@ -684,7 +826,11 @@ foreach ($connectivityGraphRows as $row) {
                                 <option value="outdoor">Outdoor</option>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Distance (m)</label>
+                            <input type="number" step="0.01" class="form-control" name="distance_meter" placeholder="e.g., 100">
+                        </div>
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Node Type</label>
                             <select class="form-select" name="node_type" required>
                                 <option value="">Select type</option>
@@ -780,6 +926,7 @@ var connectivityLabels = {
     test_date: 'Test Date',
     location_name: 'Location Name',
     environment_type: 'Environment Type',
+    distance_meter: 'Distance (m)',
     node_id: 'Node ID',
     node_type: 'Node Type',
     connection_status: 'Connection Status',
@@ -1537,6 +1684,7 @@ function editConnectivity(id) {
         'test_date',
         'location_name',
         'environment_type',
+        'distance_meter',
         'node_id',
         'node_type',
         'connection_status',
@@ -1558,6 +1706,149 @@ function deleteConnectivity(id) {
     $('#connectivityDeleteLabel').text('#' + id);
     bootstrap.Modal.getOrCreateInstance(document.getElementById('connectivityDeleteModal')).show();
 }
+<?php endif; ?>
+
+<?php if (!empty($connectivityDistanceData)): ?>
+// Distance-based charts for connectivity
+var connectivityDistanceData = <?php echo json_encode($connectivityDistanceData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var connectivityDistanceRssiChart = null;
+var connectivityDistanceLossChart = null;
+
+function createConnectivityDistanceCharts() {
+    var rssiDatasets = [];
+    var lossDatasets = [];
+    
+    Object.keys(connectivityDistanceData).forEach(function(env) {
+        var data = connectivityDistanceData[env];
+        
+        rssiDatasets.push({
+            label: ucfirst(env) + ' - RSSI',
+            data: data.rssi.map(function(value, index) {
+                return { x: data.distances[index], y: value };
+            }),
+            borderColor: data.color,
+            backgroundColor: data.color + '26',
+            borderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            tension: 0.3,
+            fill: false,
+            showLine: true,
+            env: env
+        });
+        
+        lossDatasets.push({
+            label: ucfirst(env) + ' - Packet Loss',
+            data: data.loss.map(function(value, index) {
+                return { x: data.distances[index], y: value };
+            }),
+            borderColor: data.color,
+            backgroundColor: data.color + '26',
+            borderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            tension: 0.3,
+            fill: false,
+            showLine: true,
+            env: env
+        });
+    });
+    
+    var rssiCanvas = document.getElementById('connectivityDistanceRssiChart');
+    if (rssiCanvas && rssiDatasets.length > 0) {
+        connectivityDistanceRssiChart = new Chart(rssiCanvas.getContext('2d'), {
+            type: 'scatter',
+            data: { datasets: rssiDatasets },
+            plugins: [emptyChartPlugin],
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'nearest', intersect: false },
+                plugins: {
+                    connectivityEmptyMessage: { message: 'Belum ada data jarak' },
+                    legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12 } },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        callbacks: {
+                            title: function(items) {
+                                if (!items.length) return '';
+                                return 'Jarak: ' + items[0].parsed.x.toFixed(2) + ' m';
+                            },
+                            label: function(context) {
+                                return context.dataset.label + ': ' + (context.parsed.y !== null ? context.parsed.y.toFixed(2) + ' dBm' : 'N/A');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Jarak (m)' }, grid: { color: 'rgba(15, 23, 42, 0.1)' } },
+                    y: { title: { display: true, text: 'RSSI (dBm)' }, grid: { color: 'rgba(15, 23, 42, 0.1)' } }
+                }
+            }
+        });
+    }
+    
+    var lossCanvas = document.getElementById('connectivityDistanceLossChart');
+    if (lossCanvas && lossDatasets.length > 0) {
+        connectivityDistanceLossChart = new Chart(lossCanvas.getContext('2d'), {
+            type: 'scatter',
+            data: { datasets: lossDatasets },
+            plugins: [emptyChartPlugin],
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'nearest', intersect: false },
+                plugins: {
+                    connectivityEmptyMessage: { message: 'Belum ada data jarak' },
+                    legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12 } },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        callbacks: {
+                            title: function(items) {
+                                if (!items.length) return '';
+                                return 'Jarak: ' + items[0].parsed.x.toFixed(2) + ' m';
+                            },
+                            label: function(context) {
+                                return context.dataset.label + ': ' + (context.parsed.y !== null ? context.parsed.y.toFixed(2) + '%' : 'N/A');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Jarak (m)' }, grid: { color: 'rgba(15, 23, 42, 0.1)' } },
+                    y: { beginAtZero: true, max: 100, title: { display: true, text: 'Packet Loss (%)' }, grid: { color: 'rgba(15, 23, 42, 0.1)' } }
+                }
+            }
+        });
+    }
+}
+
+function ucfirst(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// Environment filter for connectivity distance charts
+$(document).on('click', '.connectivity-distance-env-filter', function() {
+    var env = $(this).data('env');
+    $('.connectivity-distance-env-filter').removeClass('active btn-primary').addClass('btn-outline-secondary');
+    $(this).removeClass('btn-outline-secondary').addClass('active btn-primary');
+    
+    if (connectivityDistanceRssiChart) {
+        connectivityDistanceRssiChart.data.datasets.forEach(function(dataset) {
+            dataset.hidden = env === 'all' ? false : dataset.env !== env;
+        });
+        connectivityDistanceRssiChart.update();
+    }
+    
+    if (connectivityDistanceLossChart) {
+        connectivityDistanceLossChart.data.datasets.forEach(function(dataset) {
+            dataset.hidden = env === 'all' ? false : dataset.env !== env;
+        });
+        connectivityDistanceLossChart.update();
+    }
+});
+
+createConnectivityDistanceCharts();
 <?php endif; ?>
 </script>
 
@@ -1658,12 +1949,26 @@ function deleteConnectivity(id) {
     height: 360px;
     min-height: 360px;
 }
+.connectivity-distance-chart-container {
+    height: 380px;
+    min-height: 380px;
+}
+.connectivity-distance-env-filter {
+    transition: all 0.2s ease;
+}
+.connectivity-distance-env-filter.active {
+    font-weight: 700;
+}
 @media (max-width: 767.98px) {
     .connectivity-network-wrap {
         height: 380px;
         min-height: 380px;
     }
     .connectivity-chart-container {
+        height: 340px;
+        min-height: 340px;
+    }
+    .connectivity-distance-chart-container {
         height: 340px;
         min-height: 340px;
     }

@@ -21,6 +21,7 @@ $pageConfig = [
     'fields' => [
         ['name' => 'test_date', 'label' => 'Test Date', 'type' => 'date', 'required' => true],
         ['name' => 'location_name', 'label' => 'Location Name', 'required' => true],
+        ['name' => 'environment_type', 'label' => 'Environment Type', 'type' => 'select', 'options' => ['lapangan', 'hangar', 'pantai', 'gunung', 'indoor', 'outdoor']],
         ['name' => 'interference_level', 'label' => 'Interference Level', 'type' => 'select', 'options' => ['normal', 'low', 'medium', 'high']],
         ['name' => 'interference_source', 'label' => 'Interference Source'],
         ['name' => 'distance_meter', 'label' => 'Distance (m)', 'type' => 'number', 'step' => '0.01'],

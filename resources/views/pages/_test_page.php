@@ -346,6 +346,149 @@ if (!function_exists('testPageBuildCharts')) {
     }
 }
 
+if (!function_exists('testPageBuildDistanceCharts')) {
+    function testPageBuildDistanceCharts($pageConfig, $rows) {
+        // Check if table has distance field (support multiple field names)
+        $hasDistance = false;
+        $hasEnvironment = false;
+        $distanceField = null;
+        
+        if (!empty($rows)) {
+            // Check for distance_meter first, then distance_actual_meter
+            if (array_key_exists('distance_meter', $rows[0])) {
+                $hasDistance = true;
+                $distanceField = 'distance_meter';
+            } elseif (array_key_exists('distance_actual_meter', $rows[0])) {
+                $hasDistance = true;
+                $distanceField = 'distance_actual_meter';
+            }
+            $hasEnvironment = array_key_exists('environment_type', $rows[0]);
+        }
+        
+        if (!$hasDistance) {
+            return null;
+        }
+        
+        // Get environment options
+        $environmentOptions = ['lapangan', 'hangar', 'pantai', 'gunung', 'indoor', 'outdoor'];
+        
+        // Group data by environment
+        $byEnvironment = [];
+        $allEnvironments = [];
+        
+        foreach ($rows as $row) {
+            $env = $row['environment_type'] ?? null;
+            if ($env === null || $env === '') {
+                $env = 'unknown';
+            }
+            $allEnvironments[$env] = true;
+            
+            $distance = $row[$distanceField] ?? null;
+            if ($distance === null || !is_numeric($distance)) {
+                continue;
+            }
+            
+            if (!isset($byEnvironment[$env])) {
+                $byEnvironment[$env] = [];
+            }
+            $byEnvironment[$env][] = $row;
+        }
+        
+        // Sort each environment by distance
+        foreach ($byEnvironment as $env => &$envRows) {
+            usort($envRows, function ($a, $b) use ($distanceField) {
+                return (float) $a[$distanceField] <=> (float) $b[$distanceField];
+            });
+        }
+        unset($envRows);
+        
+        // Get metric columns
+        $metricColumns = $pageConfig['chart_metrics'] ?? [];
+        if (!$metricColumns) {
+            foreach ($pageConfig['columns'] as $column) {
+                if (empty($column['field']) || ($column['format'] ?? '') === 'status') {
+                    continue;
+                }
+                $field = $column['field'];
+                if ($field === 'distance_meter' || $field === 'distance_actual_meter' || $field === 'environment_type') {
+                    continue;
+                }
+                $hasNumericValue = false;
+                foreach ($rows as $row) {
+                    if (isset($row[$field]) && is_numeric($row[$field])) {
+                        $hasNumericValue = true;
+                        break;
+                    }
+                }
+                if ($hasNumericValue) {
+                    $metricColumns[] = [
+                        'field' => $field,
+                        'label' => $column['label'] ?? $field,
+                    ];
+                }
+            }
+        }
+        
+        $metricColumns = array_slice($metricColumns, 0, $pageConfig['chart_metric_limit'] ?? 4);
+        
+        // Build datasets for each environment
+        $colors = [
+            'lapangan' => '#2563eb',
+            'hangar' => '#7c3aed',
+            'pantai' => '#0891b2',
+            'gunung' => '#16a34a',
+            'indoor' => '#d97706',
+            'outdoor' => '#dc2626',
+            'unknown' => '#64748b',
+        ];
+        
+        $distanceData = [];
+        foreach ($allEnvironments as $env => $dummy) {
+            $envRows = $byEnvironment[$env] ?? [];
+            if (empty($envRows)) {
+                continue;
+            }
+            
+            $distances = [];
+            $metrics = [];
+            $contexts = [];
+            
+            foreach ($envRows as $row) {
+                $distances[] = (float) $row[$distanceField];
+                $contextParts = [];
+                foreach (['test_date', 'location_name', 'node_id'] as $field) {
+                    if (!empty($row[$field])) {
+                        $contextParts[] = $field === 'test_date' ? formatDate($row[$field]) : (string) $row[$field];
+                    }
+                }
+                $contexts[] = $contextParts ? implode(' | ', $contextParts) : '';
+                
+                foreach ($metricColumns as $metric) {
+                    $field = $metric['field'];
+                    $value = $row[$field] ?? null;
+                    $metrics[$field][] = is_numeric($value) ? (float) $value : null;
+                }
+            }
+            
+            $distanceData[$env] = [
+                'distances' => $distances,
+                'contexts' => $contexts,
+                'metrics' => $metrics,
+                'color' => $colors[$env] ?? '#64748b',
+                'count' => count($envRows),
+            ];
+        }
+        
+        return [
+            'hasEnvironment' => $hasEnvironment,
+            'environments' => array_keys($distanceData),
+            'distanceData' => $distanceData,
+            'metricColumns' => $metricColumns,
+            'distanceField' => $distanceField,
+        ];
+    }
+}
+
 $success = null;
 $error = null;
 $canManageProject = canManageProject();
@@ -398,6 +541,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_test_page'] ?? '') === $p
 
 $rows = fetchAll("SELECT * FROM {$pageConfig['table']} ORDER BY {$pageConfig['order']} LIMIT 50");
 $chartData = testPageBuildCharts($pageConfig, $rows);
+$distanceChartData = testPageBuildDistanceCharts($pageConfig, $rows);
 $chartBaseId = preg_replace('/[^A-Za-z0-9_]/', '', $pageConfig['table']);
 $rowMap = [];
 foreach ($rows as $row) {
@@ -605,6 +749,61 @@ $detailLabels['updated_at'] = 'Updated At';
         <?php endif; ?>
     </div>
 </div>
+
+<?php if ($distanceChartData && !empty($distanceChartData['environments'])): ?>
+<div class="content-section">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h4 class="mb-1"><i class="fas fa-ruler-horizontal"></i> Grafik Berbasis Jarak</h4>
+            <p class="text-muted mb-0">Analisis performa berdasarkan jarak (meter) dengan filter environment. Sumbut X menampilkan jarak, sumbu Y menampilkan nilai metrik.</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h6 class="m-0 font-weight-bold text-primary">Filter Environment</h6>
+                        <small class="text-muted">Pilih environment untuk menampilkan data spesifik atau gabungan</small>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-primary distance-env-filter active" data-env="all">
+                            <i class="fas fa-globe"></i> Semua
+                        </button>
+                        <?php foreach ($distanceChartData['environments'] as $env): ?>
+                            <button type="button" class="btn btn-sm btn-outline-secondary distance-env-filter" data-env="<?php echo htmlspecialchars($env); ?>">
+                                <i class="fas fa-map-marker-alt"></i> <?php echo ucfirst(htmlspecialchars($env)); ?>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="m-0 font-weight-bold text-primary">Metrik vs Jarak</h6>
+                        <small class="text-muted">Hubungan antara jarak dan metrik performa</small>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm chart-download-btn" data-chart-target="<?php echo $chartBaseId; ?>DistanceChart">
+                        <i class="fas fa-download"></i> PNG
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container test-distance-chart-container">
+                        <canvas id="<?php echo $chartBaseId; ?>DistanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <div class="content-section">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
@@ -1060,6 +1259,152 @@ $(function() {
         });
     }
     <?php endif; ?>
+
+    <?php if ($distanceChartData && !empty($distanceChartData['environments'])): ?>
+    var distanceChartData = <?php echo json_encode($distanceChartData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    var distanceChartCanvas = document.getElementById('<?php echo $chartBaseId; ?>DistanceChart');
+    var distanceChartInstance = null;
+    var currentDistanceMetric = 0;
+
+    function createDistanceChart(metricIndex) {
+        if (!distanceChartCanvas || !distanceChartData) return;
+
+        var metric = distanceChartData.metricColumns[metricIndex];
+        if (!metric) return;
+
+        var datasets = [];
+        var envColors = {
+            'lapangan': '#2563eb',
+            'hangar': '#7c3aed',
+            'pantai': '#0891b2',
+            'gunung': '#16a34a',
+            'indoor': '#d97706',
+            'outdoor': '#dc2626',
+            'unknown': '#64748b'
+        };
+
+        Object.keys(distanceChartData.distanceData).forEach(function(env) {
+            var envData = distanceChartData.distanceData[env];
+            var metricValues = envData.metrics[metric.field] || [];
+            
+            datasets.push({
+                label: ucfirst(env) + ' - ' + metric.label,
+                data: metricValues.map(function(value, index) {
+                    return {
+                        x: envData.distances[index],
+                        y: value
+                    };
+                }),
+                borderColor: envColors[env] || '#64748b',
+                backgroundColor: (envColors[env] || '#64748b') + '26',
+                borderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 8,
+                tension: 0.3,
+                fill: false,
+                showLine: true,
+                env: env
+            });
+        });
+
+        if (distanceChartInstance) {
+            distanceChartInstance.destroy();
+        }
+
+        distanceChartInstance = new Chart(distanceChartCanvas.getContext('2d'), {
+            type: 'scatter',
+            data: {
+                datasets: datasets
+            },
+            plugins: [testEmptyChartPlugin],
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'nearest',
+                    intersect: false
+                },
+                plugins: {
+                    testEmptyChartPlugin: {
+                        message: 'Belum ada data jarak'
+                    },
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 16
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        titleMarginBottom: 8,
+                        padding: 12,
+                        callbacks: {
+                            title: function(items) {
+                                if (!items.length) return '';
+                                var item = items[0];
+                                return 'Jarak: ' + item.parsed.x.toFixed(2) + ' m';
+                            },
+                            label: function(context) {
+                                return context.dataset.label + ': ' + formatMetricValue(context.parsed.y, '');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        title: {
+                            display: true,
+                            text: 'Jarak (m)'
+                        },
+                        grid: {
+                            color: 'rgba(15, 23, 42, 0.1)'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: metric.label + (metric.unit ? ' (' + metric.unit + ')' : '')
+                        },
+                        grid: {
+                            color: 'rgba(15, 23, 42, 0.1)'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function ucfirst(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    // Environment filter
+    $(document).on('click', '.distance-env-filter', function() {
+        var env = $(this).data('env');
+        $('.distance-env-filter').removeClass('active btn-primary').addClass('btn-outline-secondary');
+        $(this).removeClass('btn-outline-secondary').addClass('active btn-primary');
+
+        if (!distanceChartInstance) return;
+
+        distanceChartInstance.data.datasets.forEach(function(dataset) {
+            if (env === 'all') {
+                dataset.hidden = false;
+            } else {
+                dataset.hidden = dataset.env !== env;
+            }
+        });
+        distanceChartInstance.update();
+    });
+
+    // Initialize distance chart
+    if (distanceChartData.metricColumns && distanceChartData.metricColumns.length > 0) {
+        createDistanceChart(0);
+    }
+    <?php endif; ?>
 });
 </script>
 
@@ -1101,6 +1446,10 @@ $(function() {
     height: 390px;
     min-height: 390px;
 }
+.test-distance-chart-container {
+    height: 420px;
+    min-height: 420px;
+}
 .test-chart-notes {
     display: grid;
     gap: 8px;
@@ -1121,11 +1470,21 @@ $(function() {
     margin-top: 2px;
     color: #2563eb;
 }
+.distance-env-filter {
+    transition: all 0.2s ease;
+}
+.distance-env-filter.active {
+    font-weight: 700;
+}
 @media (max-width: 767.98px) {
     .test-metric-chart-container,
     .test-status-chart-container {
         height: 340px;
         min-height: 340px;
+    }
+    .test-distance-chart-container {
+        height: 360px;
+        min-height: 360px;
     }
     .test-chart-summary-card strong {
         font-size: 20px;
