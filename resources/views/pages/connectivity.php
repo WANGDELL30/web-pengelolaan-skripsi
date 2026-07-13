@@ -455,12 +455,6 @@ foreach ($connectivityGraphRows as $row) {
             <a class="btn btn-success btn-sm" href="export_excel.php?table=connectivity_tests">
                 <i class="fas fa-file-excel"></i> Export Excel 365
             </a>
-            <button class="btn btn-outline-primary btn-sm" onclick="exportTable('connectivity', 'csv')">
-                <i class="fas fa-file-csv"></i> Export CSV
-            </button>
-            <button class="btn btn-outline-danger btn-sm" onclick="exportTable('connectivity', 'pdf')">
-                <i class="fas fa-file-pdf"></i> Export PDF
-            </button>
         </div>
     </div>
     

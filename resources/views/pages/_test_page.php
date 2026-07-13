@@ -1075,9 +1075,30 @@ $(function() {
     var testEmptyChartPlugin = {
         id: 'testEmptyChartPlugin',
         afterDraw: function(chart, args, options) {
-            var hasData = chart.data.datasets.some(function(dataset) {
+            var hasData = chart.data.datasets.some(function(dataset, datasetIndex) {
+                if (!chart.isDatasetVisible(datasetIndex)) {
+                    return false;
+                }
+
                 return (dataset.data || []).some(function(value) {
-                    return value !== null && value !== undefined && !isNaN(Number(value));
+                    if (value === null || value === undefined || value === '') {
+                        return false;
+                    }
+
+                    // Scatter charts store their points as { x, y }, not as a
+                    // primitive number. Both coordinates must be valid for the
+                    // point to be considered drawable.
+                    if (typeof value === 'object') {
+                        if (Object.prototype.hasOwnProperty.call(value, 'x') || Object.prototype.hasOwnProperty.call(value, 'y')) {
+                            return value.x !== null && value.x !== undefined && value.x !== '' &&
+                                value.y !== null && value.y !== undefined && value.y !== '' &&
+                                Number.isFinite(Number(value.x)) && Number.isFinite(Number(value.y));
+                        }
+
+                        return false;
+                    }
+
+                    return Number.isFinite(Number(value));
                 });
             });
 

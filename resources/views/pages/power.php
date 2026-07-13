@@ -12,7 +12,7 @@ $pageConfig = [
         ['field' => 'estimated_runtime_hour', 'label' => 'Runtime', 'unit' => 'h', 'type' => 'line'],
         ['field' => 'cpu_usage_percent', 'label' => 'CPU Usage', 'unit' => '%', 'type' => 'bar'],
     ],
-    'chart_status_field' => 'device_type',
+    'chart_status_field' => 'result',
     'chart_notes' => [
         'Power tinggi biasanya mengurangi estimasi runtime baterai.',
         'CPU usage dan RAM usage membantu membaca beban perangkat saat pengujian.',
@@ -29,6 +29,7 @@ $pageConfig = [
         ['name' => 'ram_usage_percent', 'label' => 'RAM Usage (%)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'rssi_dbm', 'label' => 'RSSI (dBm)', 'type' => 'number', 'step' => '0.01'],
         ['name' => 'snr_db', 'label' => 'SNR (dB)', 'type' => 'number', 'step' => '0.01'],
+        ['name' => 'result', 'label' => 'Result', 'type' => 'select', 'options' => ['Achieved', 'Not Evaluated']],
         ['name' => 'notes', 'label' => 'Notes', 'type' => 'textarea'],
     ],
     'calculate' => function ($data) {
@@ -57,6 +58,7 @@ $pageConfig = [
         ['label' => 'Power', 'field' => 'power_w', 'decimals' => 2, 'suffix' => ' W'],
         ['label' => 'Energy', 'field' => 'energy_wh', 'decimals' => 4, 'suffix' => ' Wh'],
         ['label' => 'Runtime', 'field' => 'estimated_runtime_hour', 'decimals' => 2, 'suffix' => ' h'],
+        ['label' => 'Result', 'field' => 'result', 'format' => 'status'],
     ],
 ];
 
