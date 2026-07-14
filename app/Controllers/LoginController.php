@@ -22,8 +22,25 @@ class LoginController {
         if (isLoggedIn()) {
             redirect('index.php');
         }
-        
-        include __DIR__ . '/../../resources/views/auth/login.php';
+
+        $viewPath = __DIR__ . '/../../resources/views/auth/login.php';
+        if (!is_file($viewPath) || !is_readable($viewPath)) {
+            http_response_code(500);
+            echo 'Login view tidak tersedia. Upload ulang folder resources/views/auth dari paket deployment.';
+            return;
+        }
+
+        ob_start();
+        $included = include $viewPath;
+        $output = ob_get_clean();
+
+        if ($included === false || $output === '') {
+            http_response_code(500);
+            echo 'Login view gagal dimuat. Pastikan resources/views/auth/login.php tidak kosong dan dapat dibaca.';
+            return;
+        }
+
+        echo $output;
     }
     
     /**

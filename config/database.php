@@ -4,10 +4,8 @@
  * Design and Implementation of a Wi-Fi HaLow-Based Tactical Monitoring and Communication Support System
  */
 
-// Database configuration
-$hostName = strtolower($_SERVER['HTTP_HOST'] ?? '');
-$isProductionHost = preg_match('/(^|\.)skripsi\.arndilhmzbr\.engineer$/', $hostName);
-
+// Default XAMPP/local database configuration.
+// Hosting credentials are injected only into the generated deployment package.
 $config = [
     'host' => 'localhost',
     'dbname' => 'wifi_holow_testing',
@@ -15,16 +13,6 @@ $config = [
     'password' => '',
     'charset' => 'utf8mb4'
 ];
-
-if ($isProductionHost) {
-    $config = [
-        'host' => 'localhost',
-        'dbname' => 'arndilh2_skripsi',
-        'username' => 'arndilh2_skripsi',
-        'password' => '',
-        'charset' => 'utf8mb4'
-    ];
-}
 
 $localConfigFile = __DIR__ . '/database.local.php';
 if (is_file($localConfigFile)) {
