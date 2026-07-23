@@ -2,6 +2,9 @@
 CREATE TABLE IF NOT EXISTS `satellite_vsat_tests` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `test_date` DATE NOT NULL,
+    `test_session_code` VARCHAR(80) NOT NULL,
+    `planned_trials` TINYINT UNSIGNED NOT NULL DEFAULT 3,
+    `trial_number` TINYINT UNSIGNED NOT NULL DEFAULT 1,
     `location_name` VARCHAR(100) NOT NULL,
     `test_operator` VARCHAR(100) NULL,
     `weather_condition` ENUM('cerah', 'berawan', 'hujan_ringan', 'hujan_lebat') NULL,
@@ -42,5 +45,6 @@ CREATE TABLE IF NOT EXISTS `satellite_vsat_tests` (
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX `idx_satellite_vsat_test_date` (`test_date`),
-    INDEX `idx_satellite_vsat_status` (`overall_status`)
+    INDEX `idx_satellite_vsat_status` (`overall_status`),
+    UNIQUE INDEX `uq_satellite_vsat_session_trial` (`test_session_code`, `trial_number`)
 );

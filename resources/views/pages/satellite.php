@@ -5,8 +5,8 @@ $pageConfig = [
     'description' => 'Pencatatan uji coba koneksi Master ke server melalui Access Point dan jaringan satelit VSAT.',
     'table' => 'satellite_vsat_tests',
     'order' => 'test_date DESC, created_at DESC, id DESC',
-    'chart_label_fields' => ['test_date', 'node_id'],
-    'chart_label_caption' => 'Label grafik: tanggal - master',
+    'chart_label_fields' => ['test_session_code', 'trial_number'],
+    'chart_label_caption' => 'Label grafik: kode sesi - percobaan ke-',
     'chart_metric_limit' => 5,
     'chart_metrics' => [
         ['field' => 'latency_ms', 'label' => 'Latency', 'unit' => 'ms', 'type' => 'line'],
@@ -31,6 +31,17 @@ $pageConfig = [
             'section' => '1. Identitas Pengujian',
             'section_help' => 'Catat kapan, di mana, dan perangkat apa yang diuji.',
         ],
+        ['name' => 'test_session_code', 'label' => 'Kode Sesi Pengujian', 'required' => true, 'default' => 'VSAT-' . date('Ymd') . '-01', 'placeholder' => 'Contoh: VSAT-20260723-01', 'help' => 'Gunakan kode yang sama untuk seluruh percobaan ke-1 sampai ke-3.'],
+        ['name' => 'planned_trials', 'label' => 'Rencana Total Pengulangan', 'type' => 'select', 'required' => true, 'default' => 3, 'options' => [
+            ['value' => 1, 'label' => '1 kali'],
+            ['value' => 2, 'label' => '2 kali'],
+            ['value' => 3, 'label' => '3 kali (disarankan)'],
+        ]],
+        ['name' => 'trial_number', 'label' => 'Percobaan Ke-', 'type' => 'select', 'required' => true, 'default' => 1, 'options' => [
+            ['value' => 1, 'label' => 'Percobaan 1'],
+            ['value' => 2, 'label' => 'Percobaan 2'],
+            ['value' => 3, 'label' => 'Percobaan 3'],
+        ], 'help' => 'Simpan satu record untuk setiap nomor percobaan.'],
         ['name' => 'location_name', 'label' => 'Lokasi Pengujian', 'required' => true, 'placeholder' => 'Contoh: Lapangan Kampus'],
         ['name' => 'test_operator', 'label' => 'Nama Penguji', 'placeholder' => 'Nama operator/penguji'],
         ['name' => 'weather_condition', 'label' => 'Kondisi Cuaca', 'type' => 'select', 'options' => [
@@ -155,9 +166,12 @@ $pageConfig = [
             'last_successful_send' => $lastSuccessfulSend,
         ];
     },
-    'validate' => function ($data) {
+    'validate' => function ($data, $recordId = 0) {
         $requiredFields = [
             'test_date' => 'Tanggal Pengujian',
+            'test_session_code' => 'Kode Sesi Pengujian',
+            'planned_trials' => 'Rencana Total Pengulangan',
+            'trial_number' => 'Percobaan Ke-',
             'location_name' => 'Lokasi Pengujian',
             'node_id' => 'ID Master',
             'connection_mode' => 'Jalur Master ke Modem',
@@ -187,6 +201,31 @@ $pageConfig = [
             throw new RuntimeException('Link bukti foto / screenshot tidak valid.');
         }
 
+        $plannedTrials = (int) ($data['planned_trials'] ?? 0);
+        $trialNumber = (int) ($data['trial_number'] ?? 0);
+        if ($plannedTrials < 1 || $plannedTrials > 3) {
+            throw new RuntimeException('Rencana total pengulangan harus antara 1 sampai 3 kali.');
+        }
+        if ($trialNumber < 1 || $trialNumber > $plannedTrials) {
+            throw new RuntimeException('Nomor percobaan harus berada di antara 1 dan rencana total pengulangan.');
+        }
+
+        $existingSession = fetchOne(
+            'SELECT planned_trials FROM satellite_vsat_tests WHERE test_session_code = ? AND id <> ? LIMIT 1',
+            [$data['test_session_code'], (int) $recordId]
+        );
+        if ($existingSession && (int) $existingSession['planned_trials'] !== $plannedTrials) {
+            throw new RuntimeException('Rencana pengulangan untuk sesi ini sudah ditetapkan ' . (int) $existingSession['planned_trials'] . ' kali. Gunakan jumlah yang sama.');
+        }
+
+        $duplicate = fetchOne(
+            'SELECT id FROM satellite_vsat_tests WHERE test_session_code = ? AND trial_number = ? AND id <> ? LIMIT 1',
+            [$data['test_session_code'], $trialNumber, (int) $recordId]
+        );
+        if ($duplicate) {
+            throw new RuntimeException('Percobaan ke-' . $trialNumber . ' untuk kode sesi ini sudah tersimpan. Gunakan nomor percobaan berikutnya atau edit data yang ada.');
+        }
+
         $sent = $data['packet_sent'] ?? null;
         $received = $data['packet_received'] ?? null;
         if (!is_numeric($sent) || (int) $sent <= 0) {
@@ -198,12 +237,15 @@ $pageConfig = [
     },
     'formulas' => [
         'Packet Loss % = ((Packet Dikirim - Packet Diterima) / Packet Dikirim) x 100',
+        'Rata-rata sesi = jumlah nilai seluruh percobaan / jumlah percobaan yang terisi',
         'Status Lulus = ping gateway berhasil + ping internet/server berhasil + VSAT locked',
         'Status Parsial = link satelit belum dapat dibuktikan atau pengiriman MQTT/API gagal',
         'Status Gagal = ping gateway/internet gagal atau VSAT unlocked',
     ],
     'columns' => [
         ['label' => 'Tanggal', 'field' => 'test_date', 'format' => 'date'],
+        ['label' => 'Kode Sesi', 'field' => 'test_session_code'],
+        ['label' => 'Uji Ke-', 'field' => 'trial_number'],
         ['label' => 'Master', 'field' => 'node_id'],
         ['label' => 'Access Point', 'field' => 'access_point_ssid'],
         ['label' => 'Ping Gateway', 'field' => 'gateway_ping_status', 'format' => 'status'],
@@ -282,3 +324,99 @@ $pageConfig = [
 </style>
 
 <?php include __DIR__ . '/_test_page.php'; ?>
+
+<?php
+$satelliteRepetitionRows = fetchAll("
+    SELECT
+        test_session_code,
+        MAX(test_date) AS test_date,
+        MAX(location_name) AS location_name,
+        MAX(node_id) AS node_id,
+        MAX(planned_trials) AS planned_trials,
+        COUNT(DISTINCT trial_number) AS completed_trials,
+        ROUND(AVG(latency_ms), 2) AS avg_latency_ms,
+        ROUND(AVG(jitter_ms), 2) AS avg_jitter_ms,
+        ROUND(AVG(packet_loss_percent), 2) AS avg_packet_loss_percent,
+        ROUND(AVG(download_kbps), 2) AS avg_download_kbps,
+        ROUND(AVG(upload_kbps), 2) AS avg_upload_kbps,
+        ROUND(AVG(wifi_rssi_dbm), 2) AS avg_wifi_rssi_dbm,
+        ROUND(AVG(wifi_snr_db), 2) AS avg_wifi_snr_db,
+        SUM(overall_status = 'passed') AS passed_trials,
+        MAX(created_at) AS latest_created_at
+    FROM satellite_vsat_tests
+    WHERE test_session_code IS NOT NULL AND test_session_code <> ''
+    GROUP BY test_session_code
+    ORDER BY test_date DESC, latest_created_at DESC
+    LIMIT 30
+");
+
+if (!function_exists('satelliteAverageValue')) {
+    function satelliteAverageValue($value, $suffix = '') {
+        if ($value === null || $value === '' || !is_numeric($value)) {
+            return 'N/A';
+        }
+        return number_format((float) $value, 2) . $suffix;
+    }
+}
+?>
+
+<div class="content-section">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h4 class="mb-1"><i class="fas fa-repeat"></i> Validasi Rata-rata Pengulangan</h4>
+            <p class="text-muted mb-0">Ringkasan otomatis seluruh percobaan dengan kode sesi yang sama. Tiga pengulangan memberikan validasi paling kuat.</p>
+        </div>
+        <span class="badge bg-secondary"><?php echo count($satelliteRepetitionRows); ?> sesi</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover data-table" width="100%">
+            <thead>
+                <tr>
+                    <th>Kode Sesi</th>
+                    <th>Progress</th>
+                    <th>Validasi</th>
+                    <th>Rata-rata Latency</th>
+                    <th>Rata-rata Jitter</th>
+                    <th>Rata-rata Packet Loss</th>
+                    <th>Rata-rata Download</th>
+                    <th>Rata-rata Upload</th>
+                    <th>Rata-rata RSSI</th>
+                    <th>Rata-rata SNR</th>
+                    <th>Hasil Lulus</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($satelliteRepetitionRows as $summary): ?>
+                    <?php
+                    $completed = (int) ($summary['completed_trials'] ?? 0);
+                    $planned = max(1, (int) ($summary['planned_trials'] ?? 1));
+                    if ($completed >= 3) {
+                        $validationLabel = '<span class="badge bg-success">Validasi kuat</span>';
+                    } elseif ($completed === 2) {
+                        $validationLabel = '<span class="badge bg-warning text-dark">Rata-rata sementara</span>';
+                    } else {
+                        $validationLabel = '<span class="badge bg-secondary">Belum diulang</span>';
+                    }
+                    ?>
+                    <tr>
+                        <td>
+                            <strong><?php echo htmlspecialchars($summary['test_session_code']); ?></strong>
+                            <small class="d-block text-muted"><?php echo formatDate($summary['test_date']); ?> · <?php echo htmlspecialchars($summary['node_id']); ?></small>
+                        </td>
+                        <td><?php echo $completed; ?>/<?php echo $planned; ?> percobaan</td>
+                        <td><?php echo $validationLabel; ?></td>
+                        <td><?php echo satelliteAverageValue($summary['avg_latency_ms'], ' ms'); ?></td>
+                        <td><?php echo satelliteAverageValue($summary['avg_jitter_ms'], ' ms'); ?></td>
+                        <td><?php echo satelliteAverageValue($summary['avg_packet_loss_percent'], '%'); ?></td>
+                        <td><?php echo satelliteAverageValue($summary['avg_download_kbps'], ' kbps'); ?></td>
+                        <td><?php echo satelliteAverageValue($summary['avg_upload_kbps'], ' kbps'); ?></td>
+                        <td><?php echo satelliteAverageValue($summary['avg_wifi_rssi_dbm'], ' dBm'); ?></td>
+                        <td><?php echo satelliteAverageValue($summary['avg_wifi_snr_db'], ' dB'); ?></td>
+                        <td><?php echo (int) ($summary['passed_trials'] ?? 0); ?>/<?php echo $completed; ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>

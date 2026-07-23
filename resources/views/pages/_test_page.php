@@ -516,7 +516,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_test_page'] ?? '') === $p
 
             $updateData = testPageBuildData($pageConfig, $_POST);
             if (isset($pageConfig['validate']) && is_callable($pageConfig['validate'])) {
-                call_user_func($pageConfig['validate'], $updateData);
+                call_user_func($pageConfig['validate'], $updateData, $recordId, 'update');
             }
             $columns = array_keys($updateData);
             $assignments = implode(', ', array_map(function ($column) {
@@ -530,7 +530,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_test_page'] ?? '') === $p
         } else {
             $insertData = testPageBuildData($pageConfig, $_POST);
             if (isset($pageConfig['validate']) && is_callable($pageConfig['validate'])) {
-                call_user_func($pageConfig['validate'], $insertData);
+                call_user_func($pageConfig['validate'], $insertData, 0, 'create');
             }
             $columns = array_keys($insertData);
             $placeholders = implode(', ', array_fill(0, count($columns), '?'));
@@ -625,7 +625,14 @@ $detailLabels['updated_at'] = 'Updated At';
                                             <select class="form-select" name="<?php echo htmlspecialchars($name); ?>" <?php echo !empty($field['required']) ? 'required' : ''; ?>>
                                                 <option value="">Pilih</option>
                                                 <?php foreach ($field['options'] as $optionValue => $optionLabel): ?>
-                                                    <?php if (is_int($optionValue)) $optionValue = $optionLabel; ?>
+                                                    <?php
+                                                    if (is_array($optionLabel)) {
+                                                        $optionValue = $optionLabel['value'] ?? '';
+                                                        $optionLabel = $optionLabel['label'] ?? $optionValue;
+                                                    } elseif (is_int($optionValue)) {
+                                                        $optionValue = $optionLabel;
+                                                    }
+                                                    ?>
                                                     <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo (string) $value === (string) $optionValue ? 'selected' : ''; ?>>
                                                         <?php echo htmlspecialchars($optionLabel); ?>
                                                     </option>
@@ -931,7 +938,14 @@ $detailLabels['updated_at'] = 'Updated At';
                                     <select class="form-select test-edit-field" name="<?php echo htmlspecialchars($name); ?>" data-field="<?php echo htmlspecialchars($name); ?>" <?php echo !empty($field['required']) ? 'required' : ''; ?>>
                                         <option value="">Pilih</option>
                                         <?php foreach ($field['options'] as $optionValue => $optionLabel): ?>
-                                            <?php if (is_int($optionValue)) $optionValue = $optionLabel; ?>
+                                            <?php
+                                            if (is_array($optionLabel)) {
+                                                $optionValue = $optionLabel['value'] ?? '';
+                                                $optionLabel = $optionLabel['label'] ?? $optionValue;
+                                            } elseif (is_int($optionValue)) {
+                                                $optionValue = $optionLabel;
+                                            }
+                                            ?>
                                             <option value="<?php echo htmlspecialchars($optionValue); ?>"><?php echo htmlspecialchars($optionLabel); ?></option>
                                         <?php endforeach; ?>
                                     </select>
