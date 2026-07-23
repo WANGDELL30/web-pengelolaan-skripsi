@@ -180,6 +180,53 @@ CREATE TABLE throughput_tests (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- Satellite / VSAT End-to-End Tests table
+CREATE TABLE satellite_vsat_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    test_date DATE NOT NULL,
+    location_name VARCHAR(100) NOT NULL,
+    test_operator VARCHAR(100),
+    weather_condition ENUM('cerah', 'berawan', 'hujan_ringan', 'hujan_lebat'),
+    node_id VARCHAR(50) NOT NULL DEFAULT 'MASTER-VSAT',
+    connection_mode ENUM('WiFi AP + VSAT', 'Ethernet + VSAT') NOT NULL DEFAULT 'WiFi AP + VSAT',
+    access_point_ssid VARCHAR(100) NOT NULL,
+    ip_assignment ENUM('DHCP', 'Static') DEFAULT 'DHCP',
+    master_ip VARCHAR(45) NOT NULL,
+    gateway_ip VARCHAR(45) NOT NULL,
+    wan_ip VARCHAR(45),
+    vsat_provider VARCHAR(100),
+    gateway_ping_status ENUM('success', 'fail') NOT NULL,
+    server_target VARCHAR(150) NOT NULL,
+    internet_ping_status ENUM('success', 'fail') NOT NULL,
+    packet_sent INT NOT NULL DEFAULT 10,
+    packet_received INT NOT NULL DEFAULT 10,
+    latency_ms DECIMAL(10,2),
+    jitter_ms DECIMAL(10,2),
+    packet_loss_percent DECIMAL(5,2),
+    download_kbps DECIMAL(12,2),
+    upload_kbps DECIMAL(12,2),
+    wifi_rssi_dbm DECIMAL(6,2),
+    wifi_snr_db DECIMAL(6,2),
+    vsat_lock_status ENUM('locked', 'unlocked', 'not_checked') NOT NULL,
+    rx_signal_type ENUM('SNR', 'C/N', 'Eb/N0'),
+    rx_signal_db DECIMAL(8,2),
+    tx_power_dbm DECIMAL(8,2),
+    modem_uptime_minutes BIGINT,
+    rain_fade_status ENUM('none', 'mild', 'moderate', 'severe', 'not_checked') DEFAULT 'not_checked',
+    data_usage_mb DECIMAL(12,2),
+    server_protocol ENUM('MQTT', 'HTTP API', 'HTTPS API', 'other', 'not_tested') DEFAULT 'not_tested',
+    server_delivery_status ENUM('success', 'fail', 'not_tested') DEFAULT 'not_tested',
+    reconnect_count INT DEFAULT 0,
+    last_successful_send DATETIME,
+    evidence_link VARCHAR(255),
+    overall_status ENUM('passed', 'partial', 'failed') NOT NULL DEFAULT 'partial',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_satellite_vsat_test_date (test_date),
+    INDEX idx_satellite_vsat_status (overall_status)
+);
+
 -- Interference Resistance Tests table
 CREATE TABLE interference_tests (
     id INT AUTO_INCREMENT PRIMARY KEY,

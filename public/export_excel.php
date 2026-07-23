@@ -18,6 +18,7 @@ $exportTables = [
     'signal_penetration_tests' => ['title' => 'Signal Penetration Tests', 'order' => 'test_date DESC, created_at DESC, id DESC'],
     'latency_tests' => ['title' => 'Latency Tests', 'order' => 'test_date DESC, created_at DESC, id DESC'],
     'throughput_tests' => ['title' => 'Throughput Tests', 'order' => 'test_date DESC, created_at DESC, id DESC'],
+    'satellite_vsat_tests' => ['title' => 'Satellite VSAT Tests', 'order' => 'test_date DESC, created_at DESC, id DESC'],
     'interference_tests' => ['title' => 'Interference Tests', 'order' => 'test_date DESC, created_at DESC, id DESC'],
     'slave_camera_tests' => ['title' => 'Camera Tests', 'order' => 'test_date DESC, created_at DESC, id DESC'],
     'power_consumption_tests' => ['title' => 'Power Consumption Tests', 'order' => 'test_date DESC, created_at DESC, id DESC'],

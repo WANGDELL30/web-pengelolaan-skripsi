@@ -515,6 +515,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_test_page'] ?? '') === $p
             }
 
             $updateData = testPageBuildData($pageConfig, $_POST);
+            if (isset($pageConfig['validate']) && is_callable($pageConfig['validate'])) {
+                call_user_func($pageConfig['validate'], $updateData);
+            }
             $columns = array_keys($updateData);
             $assignments = implode(', ', array_map(function ($column) {
                 return "{$column} = ?";
@@ -526,6 +529,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_test_page'] ?? '') === $p
             $success = 'Data berhasil diperbarui.';
         } else {
             $insertData = testPageBuildData($pageConfig, $_POST);
+            if (isset($pageConfig['validate']) && is_callable($pageConfig['validate'])) {
+                call_user_func($pageConfig['validate'], $insertData);
+            }
             $columns = array_keys($insertData);
             $placeholders = implode(', ', array_fill(0, count($columns), '?'));
             $sql = "INSERT INTO {$pageConfig['table']} (" . implode(', ', $columns) . ") VALUES ($placeholders)";
@@ -602,6 +608,16 @@ $detailLabels['updated_at'] = 'Updated At';
                                     $value = $_POST[$name] ?? ($field['default'] ?? '');
                                     $col = $field['col'] ?? ($type === 'textarea' ? 'col-12' : 'col-md-6');
                                     ?>
+                                    <?php if (!empty($field['section'])): ?>
+                                        <div class="col-12 mt-2 mb-3">
+                                            <div class="test-form-section">
+                                                <strong><?php echo htmlspecialchars($field['section']); ?></strong>
+                                                <?php if (!empty($field['section_help'])): ?>
+                                                    <small><?php echo htmlspecialchars($field['section_help']); ?></small>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
                                     <div class="<?php echo $col; ?> mb-3">
                                         <label class="form-label"><?php echo htmlspecialchars($field['label']); ?></label>
 
@@ -616,7 +632,7 @@ $detailLabels['updated_at'] = 'Updated At';
                                                 <?php endforeach; ?>
                                             </select>
                                         <?php elseif ($type === 'textarea'): ?>
-                                            <textarea class="form-control" name="<?php echo htmlspecialchars($name); ?>" rows="<?php echo $field['rows'] ?? 3; ?>"><?php echo htmlspecialchars((string) $value); ?></textarea>
+                                            <textarea class="form-control" name="<?php echo htmlspecialchars($name); ?>" rows="<?php echo $field['rows'] ?? 3; ?>" <?php echo !empty($field['placeholder']) ? 'placeholder="' . htmlspecialchars((string) $field['placeholder']) . '"' : ''; ?> <?php echo !empty($field['required']) ? 'required' : ''; ?>><?php echo htmlspecialchars((string) $value); ?></textarea>
                                         <?php else: ?>
                                             <input
                                                 type="<?php echo htmlspecialchars($type); ?>"
@@ -626,8 +642,12 @@ $detailLabels['updated_at'] = 'Updated At';
                                                 <?php echo isset($field['step']) ? 'step="' . htmlspecialchars((string) $field['step']) . '"' : ''; ?>
                                                 <?php echo isset($field['min']) ? 'min="' . htmlspecialchars((string) $field['min']) . '"' : ''; ?>
                                                 <?php echo isset($field['max']) ? 'max="' . htmlspecialchars((string) $field['max']) . '"' : ''; ?>
+                                                <?php echo !empty($field['placeholder']) ? 'placeholder="' . htmlspecialchars((string) $field['placeholder']) . '"' : ''; ?>
                                                 <?php echo !empty($field['required']) ? 'required' : ''; ?>
                                             >
+                                        <?php endif; ?>
+                                        <?php if (!empty($field['help'])): ?>
+                                            <div class="form-text"><?php echo htmlspecialchars($field['help']); ?></div>
                                         <?php endif; ?>
                                     </div>
                                 <?php endforeach; ?>
@@ -894,6 +914,16 @@ $detailLabels['updated_at'] = 'Updated At';
                             $name = $field['name'];
                             $col = $field['col'] ?? ($type === 'textarea' ? 'col-12' : 'col-md-6');
                             ?>
+                            <?php if (!empty($field['section'])): ?>
+                                <div class="col-12 mt-2 mb-3">
+                                    <div class="test-form-section">
+                                        <strong><?php echo htmlspecialchars($field['section']); ?></strong>
+                                        <?php if (!empty($field['section_help'])): ?>
+                                            <small><?php echo htmlspecialchars($field['section_help']); ?></small>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                             <div class="<?php echo $col; ?> mb-3">
                                 <label class="form-label"><?php echo htmlspecialchars($field['label']); ?></label>
 
@@ -906,7 +936,7 @@ $detailLabels['updated_at'] = 'Updated At';
                                         <?php endforeach; ?>
                                     </select>
                                 <?php elseif ($type === 'textarea'): ?>
-                                    <textarea class="form-control test-edit-field" name="<?php echo htmlspecialchars($name); ?>" data-field="<?php echo htmlspecialchars($name); ?>" rows="<?php echo $field['rows'] ?? 3; ?>"></textarea>
+                                    <textarea class="form-control test-edit-field" name="<?php echo htmlspecialchars($name); ?>" data-field="<?php echo htmlspecialchars($name); ?>" rows="<?php echo $field['rows'] ?? 3; ?>" <?php echo !empty($field['placeholder']) ? 'placeholder="' . htmlspecialchars((string) $field['placeholder']) . '"' : ''; ?> <?php echo !empty($field['required']) ? 'required' : ''; ?>></textarea>
                                 <?php else: ?>
                                     <input
                                         type="<?php echo htmlspecialchars($type); ?>"
@@ -916,8 +946,12 @@ $detailLabels['updated_at'] = 'Updated At';
                                         <?php echo isset($field['step']) ? 'step="' . htmlspecialchars((string) $field['step']) . '"' : ''; ?>
                                         <?php echo isset($field['min']) ? 'min="' . htmlspecialchars((string) $field['min']) . '"' : ''; ?>
                                         <?php echo isset($field['max']) ? 'max="' . htmlspecialchars((string) $field['max']) . '"' : ''; ?>
+                                        <?php echo !empty($field['placeholder']) ? 'placeholder="' . htmlspecialchars((string) $field['placeholder']) . '"' : ''; ?>
                                         <?php echo !empty($field['required']) ? 'required' : ''; ?>
                                     >
+                                <?php endif; ?>
+                                <?php if (!empty($field['help'])): ?>
+                                    <div class="form-text"><?php echo htmlspecialchars($field['help']); ?></div>
                                 <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
@@ -1432,6 +1466,20 @@ $(function() {
 <style>
 .test-chart-summary-grid {
     margin-bottom: 8px;
+}
+.test-form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px;
+    color: #1e3c72;
+    border-left: 4px solid #2563eb;
+    border-radius: 6px;
+    background: #eff6ff;
+}
+.test-form-section small {
+    color: #64748b;
+    font-weight: 400;
 }
 .test-chart-summary-card {
     height: 100%;

@@ -569,6 +569,9 @@ $roleBadgeClass = $canManageProject ? 'danger' : ($currentRole === 'viewer' ? 's
             <a href="index.php?page=throughput" class="nav-link <?php echo ($_GET['page'] ?? '') === 'throughput' ? 'active' : ''; ?>">
                 <i class="fas fa-bolt"></i> Throughput Test
             </a>
+            <a href="index.php?page=satellite" class="nav-link <?php echo ($_GET['page'] ?? '') === 'satellite' ? 'active' : ''; ?>">
+                <i class="fas fa-satellite-dish"></i> Satellite / VSAT Test
+            </a>
             <a href="index.php?page=interference" class="nav-link <?php echo ($_GET['page'] ?? '') === 'interference' ? 'active' : ''; ?>">
                 <i class="fas fa-wifi"></i> Interference Test
             </a>

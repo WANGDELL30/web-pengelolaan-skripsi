@@ -82,6 +82,12 @@ switch ($page) {
         $title = 'Throughput Tests';
         $content = renderView(__DIR__ . '/../resources/views/pages/throughput.php');
         break;
+
+    case 'satellite':
+        $title = 'Satellite / VSAT Test';
+        $subtitle = 'Master to server through an access point and satellite link';
+        $content = renderView(__DIR__ . '/../resources/views/pages/satellite.php');
+        break;
     
     case 'interference':
         $title = 'Interference Tests';
