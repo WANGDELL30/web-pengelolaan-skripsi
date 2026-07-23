@@ -800,7 +800,7 @@
         <div class="login-body">
             <?php if (isset($_SESSION['error'])): ?>
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
+                    <?php echo htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             <?php endif; ?>
@@ -829,6 +829,9 @@
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-key"></i></span>
                         <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" required>
+                        <button type="button" class="input-group-text toggle-password" data-target="#password" title="Tampilkan/sembunyikan password" style="cursor:pointer; border-left:0;">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
                 </div>
                 <div class="d-grid">
