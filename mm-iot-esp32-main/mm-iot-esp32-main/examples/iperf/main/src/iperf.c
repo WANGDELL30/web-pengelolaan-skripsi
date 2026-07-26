@@ -74,8 +74,12 @@ enum iperf_type
 #endif
 
 #ifndef IPERF_SERVER_IP
-/** IP address of server to connect to when in client mode. */
-#define IPERF_SERVER_IP                 "192.168.1.1"
+/**
+ * Optional fixed server address for client mode. When empty, the active IPv4
+ * gateway supplied by DHCP is used so changing subnet does not require another
+ * firmware edit.
+ */
+#define IPERF_SERVER_IP                 ""
 #endif
 
 #ifndef IPERF_TIME_AMOUNT
@@ -89,6 +93,14 @@ enum iperf_type
 #ifndef IPERF_SERVER_PORT
 /** Specifies the port to listen on in server mode. */
 #define IPERF_SERVER_PORT               5001
+#endif
+
+#ifndef DHCP_RESERVED_SLAVE_IP
+/**
+ * Address reserved for this slave on the DHCP server. This does not force a
+ * static address; it is used to verify that DHCP returned the expected lease.
+ */
+#define DHCP_RESERVED_SLAVE_IP          "10.20.10.5"
 #endif
 
 #ifndef ATAK_COT_ENABLE
@@ -369,6 +381,64 @@ static const char units[] = {' ', 'K', 'M', 'G', 'T'};
 
 static uint32_t iperf_command_sent_time_ms;
 static uint32_t iperf_command_received_time_ms;
+
+static const char *ipv4_mode_to_string(enum mmipal_addr_mode mode)
+{
+    switch (mode)
+    {
+    case MMIPAL_DISABLED:
+        return "disabled";
+
+    case MMIPAL_STATIC:
+        return "static";
+
+    case MMIPAL_DHCP:
+        return "dhcp";
+
+    case MMIPAL_AUTOIP:
+        return "autoip";
+
+    case MMIPAL_DHCP_OFFLOAD:
+        return "dhcp_offload";
+    }
+
+    return "unknown";
+}
+
+static void report_ipv4_configuration(void)
+{
+    struct mmipal_ip_config ip_config = MMIPAL_IP_CONFIG_DEFAULT;
+
+    if (mmipal_get_ip_config(&ip_config) != MMIPAL_SUCCESS)
+    {
+        printf("Unable to read the active IPv4 configuration.\n");
+        return;
+    }
+
+    printf("Active IPv4 configuration: mode=%s, IP=%s, netmask=%s, gateway=%s\n",
+           ipv4_mode_to_string(ip_config.mode),
+           ip_config.ip_addr,
+           ip_config.netmask,
+           ip_config.gateway_addr);
+
+    if (DHCP_RESERVED_SLAVE_IP[0] == '\0')
+    {
+        return;
+    }
+
+    if (strcmp(ip_config.ip_addr, DHCP_RESERVED_SLAVE_IP) == 0)
+    {
+        printf("DHCP reservation confirmed: slave is reachable at http://%s/\n",
+               DHCP_RESERVED_SLAVE_IP);
+    }
+    else
+    {
+        printf("WARNING: slave expected DHCP address %s but received %s. "
+               "Check the DHCP reservation for this device MAC address.\n",
+               DHCP_RESERVED_SLAVE_IP,
+               ip_config.ip_addr);
+    }
+}
 
 #if STATUS_WEB_ENABLE
 static httpd_handle_t status_web_server = NULL;
@@ -1902,6 +1972,10 @@ static int build_status_json(char *buffer, size_t buffer_len)
 {
     struct mmipal_ip_config ip_config = MMIPAL_IP_CONFIG_DEFAULT;
     const char *ip_addr = "0.0.0.0";
+    const char *netmask = "0.0.0.0";
+    const char *gateway_addr = "0.0.0.0";
+    const char *ipv4_mode = "unknown";
+    bool lease_matches_expected = false;
     char atak_target[32] = "";
     int32_t rssi_dbm = mmwlan_get_rssi();
     const char *link_state = web_link_state_to_string(mmipal_get_link_state());
@@ -1929,10 +2003,20 @@ static int build_status_json(char *buffer, size_t buffer_len)
 
     if (mmipal_get_ip_config(&ip_config) == MMIPAL_SUCCESS)
     {
+        ipv4_mode = ipv4_mode_to_string(ip_config.mode);
         if (ip_config.ip_addr[0] != '\0')
         {
             ip_addr = ip_config.ip_addr;
         }
+        if (ip_config.netmask[0] != '\0')
+        {
+            netmask = ip_config.netmask;
+        }
+        if (ip_config.gateway_addr[0] != '\0')
+        {
+            gateway_addr = ip_config.gateway_addr;
+        }
+        lease_matches_expected = strcmp(ip_addr, DHCP_RESERVED_SLAVE_IP) == 0;
     }
 
 #if ATAK_COT_ENABLE
@@ -1967,6 +2051,13 @@ static int build_status_json(char *buffer, size_t buffer_len)
         "\"firmware_version\":\"" STATUS_WEB_FIRMWARE_VERSION "\","
         "\"callsign\":\"" ATAK_COT_CALLSIGN "\","
         "\"ipv4\":\"%s\","
+        "\"network\":{"
+        "\"mode\":\"%s\","
+        "\"expected_ipv4\":\"" DHCP_RESERVED_SLAVE_IP "\","
+        "\"lease_matches_expected\":%s,"
+        "\"netmask\":\"%s\","
+        "\"gateway\":\"%s\""
+        "},"
         "\"link_state\":\"%s\","
         "\"rssi_dbm\":%ld,"
         "\"uptime_ms\":%lu,"
@@ -1994,6 +2085,10 @@ static int build_status_json(char *buffer, size_t buffer_len)
         "}"
         "}",
         ip_addr,
+        ipv4_mode,
+        lease_matches_expected ? "true" : "false",
+        netmask,
+        gateway_addr,
         link_state,
         (long)rssi_dbm,
         (unsigned long)mmosal_get_time_ms(),
@@ -3154,15 +3249,52 @@ static void iperf_report_handler(const struct mmiperf_report *report, void *arg,
     }
 }
 
+static bool resolve_iperf_server_addr(char *server_addr, size_t server_addr_len)
+{
+    struct mmipal_ip_config ip_config = MMIPAL_IP_CONFIG_DEFAULT;
+    const char *resolved_addr = IPERF_SERVER_IP;
+    int written;
+
+    if ((server_addr == NULL) || (server_addr_len == 0))
+    {
+        return false;
+    }
+
+    if (resolved_addr[0] == '\0')
+    {
+        if ((mmipal_get_ip_config(&ip_config) != MMIPAL_SUCCESS) ||
+            (ip_config.gateway_addr[0] == '\0') ||
+            (strcmp(ip_config.gateway_addr, "0.0.0.0") == 0))
+        {
+            printf("Unable to resolve iperf server from the DHCP gateway. "
+                   "Set IPERF_SERVER_IP explicitly if the server is not the gateway.\n");
+            return false;
+        }
+
+        resolved_addr = ip_config.gateway_addr;
+        printf("Iperf client target selected from DHCP gateway: %s\n", resolved_addr);
+    }
+
+    written = snprintf(server_addr, server_addr_len, "%s", resolved_addr);
+    if ((written < 0) || ((size_t)written >= server_addr_len))
+    {
+        printf("Iperf server address is too long.\n");
+        return false;
+    }
+
+    return true;
+}
+
 /** Start iperf as a TCP client. */
 static void start_tcp_client(void)
 {
     uint32_t server_port = IPERF_SERVER_PORT;
     struct mmiperf_client_args args = MMIPERF_CLIENT_ARGS_DEFAULT;
 
-    /* Get the Server IP */
-    strncpy(args.server_addr, IPERF_SERVER_IP, sizeof(args.server_addr));
-
+    if (!resolve_iperf_server_addr(args.server_addr, sizeof(args.server_addr)))
+    {
+        return;
+    }
 
     MMOSAL_ASSERT(server_port <= UINT16_MAX);
     args.server_port = server_port;
@@ -3186,7 +3318,10 @@ static void start_udp_client(void)
     uint32_t server_port = IPERF_SERVER_PORT;
     struct mmiperf_client_args args = MMIPERF_CLIENT_ARGS_DEFAULT;
 
-    strncpy(args.server_addr, IPERF_SERVER_IP, sizeof(args.server_addr));
+    if (!resolve_iperf_server_addr(args.server_addr, sizeof(args.server_addr)))
+    {
+        return;
+    }
 
     MMOSAL_ASSERT(server_port <= UINT16_MAX);
     args.server_port = server_port;
@@ -3300,6 +3435,7 @@ void app_main(void)
     /* Initialize and connect to Wi-Fi, blocks till connected */
     app_wlan_init();
     app_wlan_start();
+    report_ipv4_configuration();
 
 #if ATAK_COT_ENABLE && ATAK_GPS_ENABLE
     start_atak_gps();

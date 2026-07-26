@@ -484,7 +484,7 @@ include __DIR__ . '/_test_page.php';
             <div class="row g-3 align-items-end mb-3">
                 <div class="col-lg-7">
                     <label for="liveGpsApiUrl" class="form-label">GPS Status API URL</label>
-                    <input type="url" class="form-control" id="liveGpsApiUrl" value="http://192.168.1.112/api/status" placeholder="http://192.168.1.112/api/status">
+                    <input type="url" class="form-control" id="liveGpsApiUrl" value="http://10.20.10.5/api/status" placeholder="http://10.20.10.5/api/status">
                 </div>
                 <div class="col-lg-5">
                     <div class="d-flex flex-wrap gap-2">
@@ -606,6 +606,8 @@ include __DIR__ . '/_test_page.php';
 
     var storageKey = 'wifiHalowGpsStatusUrl';
     var autofillKey = 'wifiHalowGpsAutofill';
+    var defaultApiUrl = 'http://10.20.10.5/api/status';
+    var previousDefaultApiUrl = 'http://192.168.1.112/api/status';
     var refreshMs = 5000;
     var fetchTimeoutMs = 4000;
     var timer = null;
@@ -645,7 +647,7 @@ include __DIR__ . '/_test_page.php';
     function normalizeApiUrl(value) {
         var url = String(value || '').trim();
         if (url === '') {
-            url = 'http://192.168.1.112/api/status';
+            url = defaultApiUrl;
         }
 
         if (!/^https?:\/\//i.test(url)) {
@@ -927,7 +929,12 @@ include __DIR__ . '/_test_page.php';
     updateAutofillUi();
 
     if (apiInput && localStorage.getItem(storageKey)) {
-        apiInput.value = localStorage.getItem(storageKey);
+        var storedApiUrl = normalizeApiUrl(localStorage.getItem(storageKey));
+        if (storedApiUrl === normalizeApiUrl(previousDefaultApiUrl)) {
+            storedApiUrl = normalizeApiUrl(defaultApiUrl);
+            localStorage.setItem(storageKey, storedApiUrl);
+        }
+        apiInput.value = storedApiUrl;
     }
 
     if (saveButton) {

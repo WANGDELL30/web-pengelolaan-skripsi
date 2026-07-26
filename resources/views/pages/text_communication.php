@@ -107,7 +107,7 @@ $form = [
     'test_date' => date('Y-m-d'),
     'source_node' => 'MASTER-RASPI-4',
     'target_node_id' => 'SLAVE-HALOW-01',
-    'target_ip' => $_GET['target_ip'] ?? '',
+    'target_ip' => $_GET['target_ip'] ?? '10.20.10.5',
     'target_port' => '80',
     'endpoint' => '/api/message',
     'timeout' => '20',
@@ -716,7 +716,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">IP Slave</label>
-                        <input type="text" class="form-control" name="target_ip" placeholder="192.168.1.xxx" value="<?php echo htmlspecialchars($form['target_ip']); ?>" required>
+                        <input type="text" class="form-control" name="target_ip" placeholder="10.20.10.5" value="<?php echo htmlspecialchars($form['target_ip']); ?>" required>
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">HTTP Port</label>

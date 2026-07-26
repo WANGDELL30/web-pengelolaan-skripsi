@@ -84,8 +84,8 @@ switch ($page) {
         break;
 
     case 'satellite':
-        $title = 'Satellite / VSAT Test';
-        $subtitle = 'Master to server through an access point and satellite link';
+        $title = 'Uji Konektivitas Master ke Satelit';
+        $subtitle = 'Data pendukung konektivitas melalui modem dan jaringan VSAT';
         $content = renderView(__DIR__ . '/../resources/views/pages/satellite.php');
         break;
     

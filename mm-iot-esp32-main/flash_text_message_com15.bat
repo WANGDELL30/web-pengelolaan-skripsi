@@ -26,7 +26,7 @@ if errorlevel 1 (
 
 echo.
 echo Flash complete. Reset ESP32, then open:
-echo http://192.168.1.112/api/status
+echo http://10.20.10.5/api/status
 echo.
 echo Confirm the JSON contains:
 echo "firmware_version": "text-msg-v8-20260507"

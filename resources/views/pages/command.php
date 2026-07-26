@@ -96,7 +96,7 @@ $canManageProject = canManageProject();
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">IP Slave</label>
-                                <input type="text" class="form-control" name="slave_ip" value="192.168.1.112" placeholder="192.168.1.112" required>
+                                <input type="text" class="form-control" name="slave_ip" value="10.20.10.5" placeholder="10.20.10.5" required>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="form-label">UDP Port</label>

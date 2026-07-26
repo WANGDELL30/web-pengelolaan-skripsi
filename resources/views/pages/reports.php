@@ -112,16 +112,27 @@ if (!function_exists('reportEnvironmentLabel')) {
 if (!function_exists('reportStatusBadge')) {
     function reportStatusBadge($status) {
         $normalized = strtolower((string) $status);
-        $class = in_array($normalized, ['connected', 'good', 'success', 'achieved', 'normal'], true)
+        $class = in_array($normalized, ['connected', 'good', 'success', 'achieved', 'normal', 'passed', 'locked', 'associated', 'active'], true)
             ? 'is-good'
-            : (in_array($normalized, ['intermittent', 'moderate', 'medium', 'not evaluated'], true) ? 'is-warning' : 'is-danger');
+            : (in_array($normalized, ['intermittent', 'moderate', 'medium', 'not evaluated', 'partial', 'not_checked'], true) ? 'is-warning' : 'is-danger');
         return '<span class="report-status ' . $class . '">' . htmlspecialchars(ucwords((string) $status)) . '</span>';
     }
 }
 
 $environmentOptions = fetchAll("SELECT DISTINCT environment_type FROM range_tests WHERE environment_type IS NOT NULL AND environment_type != '' ORDER BY environment_type");
 $locationOptions = fetchAll("SELECT DISTINCT location_name FROM range_tests WHERE location_name IS NOT NULL AND location_name != '' ORDER BY location_name");
-$bounds = fetchOne("SELECT MIN(test_date) min_date, MAX(test_date) max_date, MIN(distance_actual_meter) min_distance, MAX(distance_actual_meter) max_distance FROM range_tests");
+$bounds = fetchOne("
+    SELECT
+        MIN(date_rows.test_date) AS min_date,
+        MAX(date_rows.test_date) AS max_date,
+        (SELECT MIN(distance_actual_meter) FROM range_tests) AS min_distance,
+        (SELECT MAX(distance_actual_meter) FROM range_tests) AS max_distance
+    FROM (
+        SELECT test_date FROM range_tests
+        UNION ALL
+        SELECT test_date FROM satellite_vsat_tests
+    ) AS date_rows
+");
 
 $filters = [
     'date_from' => trim((string) ($_GET['date_from'] ?? '')),
@@ -218,6 +229,69 @@ $opsWhereSql = $opsWhere ? 'WHERE ' . implode(' AND ', $opsWhere) : '';
 $powerData = fetchAll("SELECT test_date, device_id, device_type, battery_voltage_v, current_a, test_duration_hour, power_w, energy_wh, result, notes FROM power_consumption_tests $opsWhereSql ORDER BY test_date ASC, id ASC", $opsParams);
 $commandData = fetchAll("SELECT test_date, command_type, source, target_node_id, execution_status, command_delivery_delay, total_command_time, notes FROM command_execution_tests $opsWhereSql ORDER BY test_date ASC, id ASC", $opsParams);
 $textMessageData = fetchAll("SELECT test_date, source_node, target_node_id, message_text, delivery_status, latency_ms FROM text_message_logs $opsWhereSql ORDER BY test_date ASC, id ASC", $opsParams);
+$satelliteData = fetchAll("
+    SELECT
+        test_date,
+        test_session_code,
+        planned_trials,
+        trial_number,
+        test_operator,
+        node_id,
+        gateway_ip,
+        satellite_name,
+        signal_quality_factor,
+        server_target,
+        packet_sent,
+        packet_received,
+        latency_min_ms,
+        latency_ms,
+        latency_max_ms,
+        packet_loss_percent,
+        vsat_lock_status,
+        association_status,
+        tdma_status,
+        association_time,
+        overall_status
+    FROM satellite_vsat_tests
+    $opsWhereSql
+    ORDER BY test_date ASC, test_session_code ASC, trial_number ASC
+", $opsParams);
+$satelliteSummary = fetchOne("
+    SELECT
+        COUNT(*) AS total_trials,
+        COUNT(DISTINCT test_session_code) AS total_sessions,
+        SUM(overall_status = 'passed') AS passed_trials,
+        SUM(packet_loss_percent = 0) AS zero_loss_trials,
+        SUM(vsat_lock_status = 'locked') AS locked_trials,
+        SUM(association_status = 'associated') AS associated_trials,
+        SUM(tdma_status = 'active') AS active_tdma_trials,
+        SUM(packet_sent) AS total_packet_sent,
+        SUM(packet_received) AS total_packet_received,
+        AVG(packet_sent) AS avg_packet_sent,
+        AVG(packet_received) AS avg_packet_received,
+        MIN(latency_min_ms) AS observed_latency_min_ms,
+        AVG(latency_ms) AS avg_latency_ms,
+        MAX(latency_max_ms) AS observed_latency_max_ms,
+        MIN(latency_ms) AS lowest_trial_avg_latency_ms,
+        MAX(latency_ms) AS highest_trial_avg_latency_ms,
+        AVG(packet_loss_percent) AS avg_packet_loss_percent,
+        MIN(signal_quality_factor) AS min_signal_quality_factor,
+        MAX(signal_quality_factor) AS max_signal_quality_factor,
+        GROUP_CONCAT(DISTINCT satellite_name ORDER BY satellite_name SEPARATOR ', ') AS satellite_names,
+        MIN(test_date) AS first_test_date,
+        MAX(test_date) AS last_test_date
+    FROM satellite_vsat_tests
+    $opsWhereSql
+", $opsParams);
+$satelliteTrialAverageSpan = (
+    is_numeric($satelliteSummary['highest_trial_avg_latency_ms'] ?? null)
+    && is_numeric($satelliteSummary['lowest_trial_avg_latency_ms'] ?? null)
+)
+    ? (float) $satelliteSummary['highest_trial_avg_latency_ms'] - (float) $satelliteSummary['lowest_trial_avg_latency_ms']
+    : null;
+$satellitePacketSuccessPercent = (int) ($satelliteSummary['total_packet_sent'] ?? 0) > 0
+    ? ((float) ($satelliteSummary['total_packet_received'] ?? 0) / (float) $satelliteSummary['total_packet_sent']) * 100
+    : null;
 
 $summaryStats = [
     'connectivity' => (int) (fetchOne('SELECT COUNT(*) total FROM connectivity_tests')['total'] ?? 0),
@@ -229,6 +303,7 @@ $summaryStats = [
     'power' => (int) (fetchOne('SELECT COUNT(*) total FROM power_consumption_tests')['total'] ?? 0),
     'command' => (int) (fetchOne('SELECT COUNT(*) total FROM command_execution_tests')['total'] ?? 0),
     'text' => (int) (fetchOne('SELECT COUNT(*) total FROM text_message_logs')['total'] ?? 0),
+    'satellite' => (int) (fetchOne('SELECT COUNT(*) total FROM satellite_vsat_tests')['total'] ?? 0),
 ];
 $totalRecords = array_sum($summaryStats);
 
@@ -429,6 +504,7 @@ $technicalSources = [
         <a href="#grafik-jarak"><i class="fas fa-chart-scatter"></i> Grafik Jarak</a>
         <a href="#matriks-jarak"><i class="fas fa-table-cells"></i> Matriks</a>
         <a href="#analisis-parameter"><i class="fas fa-magnifying-glass-chart"></i> Analisis</a>
+        <a href="#satelit-vsat"><i class="fas fa-satellite-dish"></i> Satelit/VSAT</a>
         <a href="#operasional"><i class="fas fa-microchip"></i> Operasional</a>
         <a href="#referensi"><i class="fas fa-book"></i> Referensi</a>
     </nav>
@@ -661,6 +737,103 @@ $technicalSources = [
             <div class="col-lg-6"><article class="report-analysis"><h5><i class="fas fa-battery-half text-success"></i> 7. Konsumsi daya</h5><div class="finding"><?php echo $achievedPowerCount; ?> dari <?php echo count($powerData); ?> pengujian berstatus Achieved. Rata-rata daya valid <?php echo reportNumber($averagePower, 2, 'W'); ?>; tertinggi <?php echo reportNumber($peakPowerRow['power_w'] ?? null, 2, 'W'); ?> pada <?php echo htmlspecialchars($peakPowerRow['device_id'] ?? '-'); ?>.</div><p>Daya mengikuti P = V × I dan energi mengikuti E = P × durasi. Baris 0 V/0 A berstatus Not Evaluated sehingga tidak dimasukkan ke rata-rata daya valid. Fitur hemat daya 802.11ah bergantung pada pola tidur/bangun dan traffic; pengukuran perangkat penuh juga mencakup CPU, regulator, dan komponen lain. <a class="report-source-link" href="<?php echo $technicalSources['paper']['url']; ?>" target="_blank" rel="noopener">[<?php echo $technicalSources['paper']['label']; ?>]</a></p><p class="sidang"><strong>Jawaban sidang:</strong> “Angka sekitar <?php echo reportNumber($averagePower, 2, 'W'); ?> adalah konsumsi perangkat pada skenario uji ini, bukan klaim konsumsi radio HaLow saja.”</p></article></div>
 
             <div class="col-lg-6"><article class="report-analysis"><h5><i class="fas fa-clipboard-check text-secondary"></i> 8. Batas interpretasi dan kualitas data</h5><div class="finding">Dua anomali utama dipertahankan: latency 0 pada timeout dan PDR 143,58% pada baseline ketika received &gt; sent.</div><p>Keduanya tidak dihapus karena laporan harus konsisten dengan workbook. Ringkasan mengeluarkan nilai yang tidak valid untuk metrik terkait. Selain itu, parameter pada satu titik merupakan rangkaian pengujian yang disatukan berdasarkan point/date/location/distance; hubungan yang terlihat adalah asosiasi lapangan, bukan bukti bahwa satu variabel menjadi penyebab tunggal.</p><p class="sidang"><strong>Jawaban sidang:</strong> “Saya menampilkan data mentah secara transparan, memberi tanda pada outlier, dan memisahkan fakta pengukuran dari interpretasi teknis.”</p></article></div>
+        </div>
+    <?php endif; ?>
+
+    <h3 class="report-section-title" id="satelit-vsat">Pengujian konektivitas Master ke Satelit/VSAT<small>Bagian tambahan untuk menganalisis uji konektivitas end-to-end. Data ini tidak digabungkan ke matriks jarak karena tidak mengukur jarak WiFi HaLow.</small></h3>
+
+    <?php if (!$satelliteData): ?>
+        <section class="report-card report-empty">
+            <i class="fas fa-satellite-dish fa-2x mb-3"></i>
+            <h5>Data satelit tidak tersedia pada rentang tanggal ini</h5>
+            <p class="mb-0">Ubah filter tanggal untuk menampilkan kembali hasil pengujian VSAT.</p>
+        </section>
+    <?php else: ?>
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-lg-2"><div class="report-stat"><div class="report-stat-label">Sesi VSAT</div><div class="report-stat-value"><?php echo number_format((int) ($satelliteSummary['total_sessions'] ?? 0)); ?></div><div class="report-stat-note"><?php echo number_format((int) ($satelliteSummary['total_trials'] ?? 0)); ?> pengulangan</div></div></div>
+            <div class="col-6 col-lg-2"><div class="report-stat"><div class="report-stat-label">Status lulus</div><div class="report-stat-value"><?php echo number_format((int) ($satelliteSummary['passed_trials'] ?? 0)); ?>/<?php echo number_format((int) ($satelliteSummary['total_trials'] ?? 0)); ?></div><div class="report-stat-note">Locked, Associated, dan ping berhasil</div></div></div>
+            <div class="col-6 col-lg-2"><div class="report-stat"><div class="report-stat-label">Rata-rata latency</div><div class="report-stat-value"><?php echo reportNumber($satelliteSummary['avg_latency_ms'] ?? null, 3, 'ms'); ?></div><div class="report-stat-note">rata-rata dari setiap pengulangan</div></div></div>
+            <div class="col-6 col-lg-2"><div class="report-stat"><div class="report-stat-label">Rentang teramati</div><div class="report-stat-value"><?php echo reportNumber($satelliteSummary['observed_latency_min_ms'] ?? null, 3, 'ms'); ?></div><div class="report-stat-note">hingga <?php echo reportNumber($satelliteSummary['observed_latency_max_ms'] ?? null, 3, 'ms'); ?></div></div></div>
+            <div class="col-6 col-lg-2"><div class="report-stat"><div class="report-stat-label">Rata-rata paket</div><div class="report-stat-value"><?php echo reportNumber($satelliteSummary['avg_packet_received'] ?? null, 2); ?>/<?php echo reportNumber($satelliteSummary['avg_packet_sent'] ?? null, 2); ?></div><div class="report-stat-note">received/sent per pengulangan</div></div></div>
+            <div class="col-6 col-lg-2"><div class="report-stat"><div class="report-stat-label">Packet loss</div><div class="report-stat-value"><?php echo reportNumber($satelliteSummary['avg_packet_loss_percent'] ?? null, 2, '%'); ?></div><div class="report-stat-note"><?php echo reportNumber($satellitePacketSuccessPercent, 2, '%'); ?> paket berhasil</div></div></div>
+        </div>
+
+        <section class="report-card mb-3">
+            <div class="report-card-header">
+                <div>
+                    <h4><i class="fas fa-satellite-dish"></i> Rincian pengulangan VSAT</h4>
+                    <p>Nilai min/avg/max berasal dari ringkasan terminal ping; indikator modem berasal dari dashboard Hughes.</p>
+                </div>
+                <a class="btn btn-outline-primary btn-sm" href="index.php?page=satellite"><i class="fas fa-arrow-up-right-from-square"></i> Buka data sumber</a>
+            </div>
+            <div class="report-card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered report-operational-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Kode sesi</th>
+                                <th>Uji ke-</th>
+                                <th>Penguji</th>
+                                <th>Satelit</th>
+                                <th>SQF</th>
+                                <th>Downlink</th>
+                                <th>Association</th>
+                                <th>TDMA</th>
+                                <th>Packet</th>
+                                <th>Min.</th>
+                                <th>Avg.</th>
+                                <th>Maks.</th>
+                                <th>Loss</th>
+                                <th>Hasil</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($satelliteData as $row): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars(formatDate($row['test_date'])); ?></td>
+                                    <td><strong><?php echo htmlspecialchars($row['test_session_code']); ?></strong></td>
+                                    <td><?php echo (int) $row['trial_number']; ?>/<?php echo (int) $row['planned_trials']; ?></td>
+                                    <td><?php echo htmlspecialchars($row['test_operator'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['satellite_name'] ?? '-'); ?></td>
+                                    <td><?php echo reportNumber($row['signal_quality_factor'], 0); ?></td>
+                                    <td><?php echo reportStatusBadge($row['vsat_lock_status'] ?? '-'); ?></td>
+                                    <td><?php echo reportStatusBadge($row['association_status'] ?? '-'); ?></td>
+                                    <td><?php echo reportStatusBadge($row['tdma_status'] ?? '-'); ?></td>
+                                    <td><?php echo (int) $row['packet_received']; ?>/<?php echo (int) $row['packet_sent']; ?></td>
+                                    <td><?php echo reportNumber($row['latency_min_ms'], 3, 'ms'); ?></td>
+                                    <td><strong><?php echo reportNumber($row['latency_ms'], 3, 'ms'); ?></strong></td>
+                                    <td><?php echo reportNumber($row['latency_max_ms'], 3, 'ms'); ?></td>
+                                    <td><?php echo reportNumber($row['packet_loss_percent'], 2, '%'); ?></td>
+                                    <td><?php echo reportStatusBadge($row['overall_status'] ?? '-'); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <article class="report-analysis">
+                    <h5><i class="fas fa-chart-line text-primary"></i> Analisis hasil konektivitas</h5>
+                    <div class="finding">
+                        <?php echo (int) ($satelliteSummary['total_packet_received'] ?? 0); ?> dari <?php echo (int) ($satelliteSummary['total_packet_sent'] ?? 0); ?> paket diterima
+                        (<?php echo reportNumber($satellitePacketSuccessPercent, 2, '%'); ?>), dengan latency rata-rata <?php echo reportNumber($satelliteSummary['avg_latency_ms'] ?? null, 3, 'ms'); ?>.
+                    </div>
+                    <p><?php echo (int) ($satelliteSummary['zero_loss_trials'] ?? 0); ?> dari <?php echo (int) ($satelliteSummary['total_trials'] ?? 0); ?> pengulangan menghasilkan packet loss 0%. Rata-rata latency per pengulangan berada pada <?php echo reportNumber($satelliteSummary['lowest_trial_avg_latency_ms'] ?? null, 3, 'ms'); ?> sampai <?php echo reportNumber($satelliteSummary['highest_trial_avg_latency_ms'] ?? null, 3, 'ms'); ?>, atau hanya berselisih <?php echo reportNumber($satelliteTrialAverageSpan, 3, 'ms'); ?>. Hal ini menunjukkan nilai rata-rata antarpercobaan relatif konsisten pada sesi tersebut.</p>
+                    <p>Latency maksimum teramati mencapai <?php echo reportNumber($satelliteSummary['observed_latency_max_ms'] ?? null, 3, 'ms'); ?> pada salah satu paket. Lonjakan sesaat ini tidak menyebabkan packet loss, tetapi menunjukkan delay per paket masih dapat berfluktuasi. Data ping hanya mengukur RTT end-to-end sehingga tidak memisahkan waktu propagasi satelit, antrean jaringan, dan pemrosesan perangkat.</p>
+                </article>
+            </div>
+            <div class="col-lg-6">
+                <article class="report-analysis">
+                    <h5><i class="fas fa-circle-check text-success"></i> Bukti koneksi dan batas kesimpulan</h5>
+                    <div class="finding">Dashboard mencatat satelit <?php echo htmlspecialchars($satelliteSummary['satellite_names'] ?? '-'); ?> dengan SQF <?php echo reportNumber($satelliteSummary['min_signal_quality_factor'] ?? null, 0); ?><?php echo ($satelliteSummary['min_signal_quality_factor'] ?? null) !== ($satelliteSummary['max_signal_quality_factor'] ?? null) ? '–' . reportNumber($satelliteSummary['max_signal_quality_factor'] ?? null, 0) : ''; ?>. Locked <?php echo (int) ($satelliteSummary['locked_trials'] ?? 0); ?>/<?php echo (int) ($satelliteSummary['total_trials'] ?? 0); ?>, Associated <?php echo (int) ($satelliteSummary['associated_trials'] ?? 0); ?>/<?php echo (int) ($satelliteSummary['total_trials'] ?? 0); ?>, dan TDMA Active <?php echo (int) ($satelliteSummary['active_tdma_trials'] ?? 0); ?>/<?php echo (int) ($satelliteSummary['total_trials'] ?? 0); ?>.</div>
+                    <p>Gabungan status modem dan respons ping membuktikan bahwa pada rentang <?php echo htmlspecialchars(formatDate($satelliteSummary['first_test_date'] ?? '')); ?> sampai <?php echo htmlspecialchars(formatDate($satelliteSummary['last_test_date'] ?? '')); ?>, Master dapat mencapai internet melalui link VSAT. Kesimpulan ini tidak otomatis membuktikan kestabilan jangka panjang, throughput, maupun performa saat cuaca atau beban jaringan berubah.</p>
+                    <p class="sidang"><strong>Jawaban sidang:</strong> “Koneksi satelit dibuktikan berlapis: modem berstatus Locked dan Associated dengan TDMA Active, lalu ping internet berhasil <?php echo (int) ($satelliteSummary['total_packet_received'] ?? 0); ?> dari <?php echo (int) ($satelliteSummary['total_packet_sent'] ?? 0); ?> paket. Rata-rata RTT dari <?php echo (int) ($satelliteSummary['total_trials'] ?? 0); ?> pengulangan adalah <?php echo reportNumber($satelliteSummary['avg_latency_ms'] ?? null, 3, 'ms'); ?> dengan packet loss <?php echo reportNumber($satelliteSummary['avg_packet_loss_percent'] ?? null, 2, '%'); ?>.”</p>
+                </article>
+            </div>
         </div>
     <?php endif; ?>
 

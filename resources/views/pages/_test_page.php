@@ -1051,7 +1051,11 @@ $(function() {
         $('#<?php echo $chartBaseId; ?>EditRecordId').val(row.id);
         $('#<?php echo $chartBaseId; ?>EditForm .test-edit-field').each(function() {
             var field = $(this).data('field');
-            $(this).val(row[field] === null || row[field] === undefined ? '' : row[field]);
+            var value = row[field] === null || row[field] === undefined ? '' : row[field];
+            if ($(this).attr('type') === 'datetime-local' && value) {
+                value = String(value).replace(' ', 'T').slice(0, 16);
+            }
+            $(this).val(value);
         });
 
         editModal.show();
