@@ -7,7 +7,8 @@ $roleBadgeClass = $canManageProject ? 'danger' : ($currentRole === 'viewer' ? 's
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#1e3c72">
     <title><?php echo $title ?? 'WiFi HaLow Testing System'; ?> - Sistem Monitoring & Komunikasi Taktis</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -29,7 +30,7 @@ $roleBadgeClass = $canManageProject ? 'danger' : ($currentRole === 'viewer' ? 's
             Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
         }
     </script>
-    <link rel="stylesheet" href="css/style.css?v=20260511-sidebar-fix">
+    <link rel="stylesheet" href="css/style.css?v=20260727-responsive">
     <style>
         :root {
             --navy: #1e3c72;
@@ -521,14 +522,15 @@ $roleBadgeClass = $canManageProject ? 'danger' : ($currentRole === 'viewer' ? 's
             }
         }
     </style>
+    <link rel="stylesheet" href="css/responsive.css?v=20260727-responsive">
 </head>
 <body>
-    <button type="button" class="mobile-menu-btn" aria-label="Buka menu">
+    <button type="button" class="mobile-menu-btn" aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false">
         <i class="fas fa-bars"></i>
     </button>
-    <div class="sidebar-backdrop"></div>
+    <div class="sidebar-backdrop" aria-hidden="true"></div>
 
-    <div class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar" aria-label="Navigasi utama">
         <div class="sidebar-brand">
             <div class="d-flex align-items-start justify-content-between gap-3">
                 <div>
@@ -627,13 +629,13 @@ $roleBadgeClass = $canManageProject ? 'danger' : ($currentRole === 'viewer' ? 's
             </a>
         </nav>
         <div class="sidebar-resizer" role="separator" aria-label="Geser untuk mengubah lebar sidebar"></div>
-    </div>
+    </aside>
     
     <div class="main-content" id="mainContent">
         <div class="header">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center gap-3 header-title-block">
-                    <button type="button" class="layout-toggle-btn" aria-label="Tampilkan atau sembunyikan sidebar" title="Tampilkan atau sembunyikan sidebar">
+            <div class="d-flex justify-content-between align-items-center header-inner">
+                <div class="header-primary">
+                    <button type="button" class="layout-toggle-btn" aria-label="Tampilkan atau sembunyikan sidebar" aria-controls="sidebar" aria-expanded="true" title="Tampilkan atau sembunyikan sidebar">
                         <i class="fas fa-bars"></i>
                     </button>
                     <div class="header-title-block">
@@ -643,12 +645,12 @@ $roleBadgeClass = $canManageProject ? 'danger' : ($currentRole === 'viewer' ? 's
                         <?php endif; ?>
                     </div>
                 </div>
-                <div class="d-flex align-items-center">
-                    <span class="me-3">
+                <div class="header-user" title="<?php echo htmlspecialchars($_SESSION['full_name'] ?? ($_SESSION['username'] ?? 'User')); ?>">
+                    <span class="header-user-name">
                         <i class="fas fa-user-circle"></i>
-                        <?php echo $_SESSION['full_name'] ?? ($_SESSION['username'] ?? 'User'); ?>
+                        <?php echo htmlspecialchars($_SESSION['full_name'] ?? ($_SESSION['username'] ?? 'User')); ?>
                     </span>
-                    <span class="badge bg-<?php echo $roleBadgeClass; ?>">
+                    <span class="badge bg-<?php echo $roleBadgeClass; ?> header-role-badge">
                         <?php echo strtoupper($currentRole ?? 'user'); ?>
                     </span>
                 </div>
@@ -670,6 +672,6 @@ $roleBadgeClass = $canManageProject ? 'danger' : ($currentRole === 'viewer' ? 's
     <?php if (($_GET['page'] ?? '') === 'range'): ?>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <?php endif; ?>
-    <script src="js/main.js?v=20260511-sidebar-fix"></script>
+    <script src="js/main.js?v=20260727-responsive"></script>
 </body>
 </html>

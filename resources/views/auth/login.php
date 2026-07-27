@@ -2,7 +2,8 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
     <title>Login - WiFi HaLow Testing System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -686,7 +687,9 @@
 
         @media (max-width: 575.98px) {
             body {
-                padding: 16px;
+                align-items: flex-start;
+                padding: max(24px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom));
+                overflow-y: auto;
             }
 
             body::after {
@@ -703,23 +706,105 @@
             .tactical-info-right,
             .compass,
             .radar,
-            .barcode {
+            .barcode,
+            .classification-banner,
+            .chevron-strip {
                 display: none;
             }
 
             .login-header,
             .login-body {
-                padding-left: 20px;
-                padding-right: 20px;
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+
+            .login-header {
+                padding-top: 20px;
+                padding-bottom: 17px;
+            }
+
+            .login-body {
+                padding-top: 21px;
+                padding-bottom: 20px;
+            }
+
+            .login-title-row {
+                gap: 11px;
+            }
+
+            .logo-icon {
+                width: 48px;
+                height: 48px;
+                flex-basis: 48px;
+                font-size: 20px;
             }
 
             .login-header h3 {
                 font-size: 1.1rem;
             }
 
-            .classification-banner {
-                font-size: 0.55rem;
-                padding: 3px 20px;
+            .login-header p {
+                font-size: 0.77rem;
+                line-height: 1.35;
+            }
+
+            .system-tag {
+                margin-bottom: 11px;
+                padding: 4px 9px;
+                font-size: 0.62rem;
+            }
+
+            .access-strip {
+                margin-bottom: 17px;
+            }
+
+            .form-control,
+            .input-group-text {
+                min-height: 48px;
+                font-size: 16px;
+            }
+
+            .login-footer {
+                margin-top: 18px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .login-header h3 {
+                font-size: 1rem;
+            }
+
+            .login-header p {
+                font-size: 0.7rem;
+            }
+
+            .access-strip {
+                grid-template-columns: 1fr;
+            }
+
+            .status-indicator {
+                flex-direction: row;
+                justify-content: flex-start;
+            }
+        }
+
+        @media (max-height: 640px) and (orientation: landscape) {
+            body {
+                align-items: flex-start;
+                overflow-y: auto;
+            }
+
+            .classification-banner,
+            .status-bar-top,
+            .status-bar-top-right,
+            .chevron-strip,
+            .corner-marker,
+            .tactical-info-left,
+            .tactical-info-right,
+            .compass,
+            .radar,
+            .barcode {
+                display: none;
             }
         }
     </style>

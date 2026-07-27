@@ -72,6 +72,53 @@ $(document).ready(function() {
         });
     }
 
+    function enhanceResponsiveTable(table) {
+        var $table = $(table);
+        if (
+            !$table.length ||
+            !$table.find('thead th').length ||
+            $table.closest('.modal').length ||
+            $table.hasClass('report-matrix') ||
+            $table.hasClass('keep-scroll-table')
+        ) {
+            return;
+        }
+
+        $table.addClass('mobile-card-table');
+        var $shell = $table.closest('.table-responsive');
+        if ($shell.length) {
+            $shell.addClass('mobile-card-table-shell');
+            if (!$shell.prev('.mobile-table-guide').length) {
+                $(
+                    '<div class="mobile-table-guide" aria-hidden="true">' +
+                        '<i class="fas fa-mobile-screen-button"></i>' +
+                        '<span>Data ditampilkan sebagai kartu agar setiap nilai mudah dibaca di layar ponsel.</span>' +
+                    '</div>'
+                ).insertBefore($shell);
+            }
+        }
+
+        var headers = [];
+        $table.find('thead tr').last().find('th').each(function() {
+            headers.push($.trim($(this).text()).replace(/\s+/g, ' '));
+        });
+
+        $table.find('tbody tr').each(function() {
+            $(this).children('td').each(function(index) {
+                var $cell = $(this);
+                if (!$cell.attr('colspan')) {
+                    $cell.attr('data-label', headers[index] || 'Data');
+                }
+            });
+        });
+    }
+
+    function enhanceResponsiveTables() {
+        $('.table-responsive table, table.data-table, table.test-data-table, table.user-data-table').each(function() {
+            enhanceResponsiveTable(this);
+        });
+    }
+
     $(document).on('click', '.chart-download-btn', function() {
         var target = $(this).data('chart-target');
         var canvas = document.getElementById(target);
@@ -79,18 +126,64 @@ $(document).ready(function() {
         downloadChartImage(canvas, title);
     });
     
-    function closeSidebar() {
-        $('.sidebar').removeClass('show');
-        $('.sidebar-backdrop').removeClass('show');
-        $('body').removeClass('sidebar-open');
-    }
-
     var sidebar = document.querySelector('.sidebar');
     var sidebarResizer = document.querySelector('.sidebar-resizer');
     var sidebarHideButton = document.querySelector('.sidebar-hide-btn');
     var layoutToggleButton = document.querySelector('.layout-toggle-btn');
     var root = document.documentElement;
-    var layoutVersion = 'layout5';
+    var layoutVersion = 'layout6-responsive';
+    var compactLayoutBreakpoint = 992;
+    var visualResizeTimer = null;
+
+    function isCompactLayout() {
+        return window.innerWidth < compactLayoutBreakpoint;
+    }
+
+    function syncSidebarAccessibility(isOpen) {
+        $('.layout-toggle-btn, .mobile-menu-btn').attr('aria-expanded', isOpen ? 'true' : 'false');
+        $('.sidebar-backdrop').attr('aria-hidden', isOpen ? 'false' : 'true');
+    }
+
+    function scheduleVisualResize() {
+        window.clearTimeout(visualResizeTimer);
+        visualResizeTimer = window.setTimeout(function() {
+            if (window.Chart && Chart.instances) {
+                Object.keys(Chart.instances).forEach(function(key) {
+                    var chart = Chart.instances[key];
+                    if (chart && typeof chart.resize === 'function') {
+                        chart.resize();
+                    }
+                });
+            }
+
+            window.dispatchEvent(new CustomEvent('wifi:layoutchange'));
+        }, 280);
+    }
+
+    function closeSidebar() {
+        $('.sidebar').removeClass('show');
+        $('.sidebar-backdrop').removeClass('show');
+        $('body').removeClass('sidebar-open');
+        syncSidebarAccessibility(!isCompactLayout() && !document.body.classList.contains('sidebar-hidden'));
+        scheduleVisualResize();
+    }
+
+    function setMobileSidebarOpen(isOpen) {
+        $('.sidebar').toggleClass('show', isOpen);
+        $('.sidebar-backdrop').toggleClass('show', isOpen);
+        $('body').toggleClass('sidebar-open', isOpen);
+        syncSidebarAccessibility(isOpen);
+        scheduleVisualResize();
+
+        if (isOpen) {
+            window.setTimeout(function() {
+                var activeLink = document.querySelector('.sidebar .nav-link.active');
+                if (activeLink) {
+                    activeLink.focus({ preventScroll: true });
+                }
+            }, 260);
+        }
+    }
 
     if (localStorage.getItem('wifiLayoutVersion') !== layoutVersion) {
         localStorage.removeItem('sidebarStatus');
@@ -120,13 +213,13 @@ $(document).ready(function() {
     }
 
     function restoreSidebarWidth() {
-        if (window.innerWidth >= 768) {
+        if (!isCompactLayout()) {
             applySidebarWidth(280);
         }
     }
 
     function setSidebarHidden(isHidden) {
-        if (window.innerWidth < 768) {
+        if (isCompactLayout()) {
             return;
         }
 
@@ -145,13 +238,17 @@ $(document).ready(function() {
             layoutToggleButton.innerHTML = isHidden ? '<i class="fas fa-bars"></i>' : '<i class="fas fa-table-columns"></i>';
             layoutToggleButton.title = isHidden ? 'Tampilkan sidebar' : 'Sembunyikan sidebar';
         }
+
+        syncSidebarAccessibility(!isHidden);
+        scheduleVisualResize();
     }
 
     function restoreSidebarState() {
         localStorage.removeItem('sidebarStatus');
 
-        if (window.innerWidth < 768) {
+        if (isCompactLayout()) {
             document.body.classList.remove('sidebar-hidden');
+            syncSidebarAccessibility(false);
             return;
         }
 
@@ -164,7 +261,7 @@ $(document).ready(function() {
 
     if (sidebar && sidebarResizer) {
         sidebarResizer.addEventListener('pointerdown', function(event) {
-            if (window.innerWidth < 768 || document.body.classList.contains('sidebar-hidden')) return;
+            if (isCompactLayout() || document.body.classList.contains('sidebar-hidden')) return;
 
             event.preventDefault();
             sidebar.classList.add('is-resizing');
@@ -205,11 +302,9 @@ $(document).ready(function() {
 
     if (layoutToggleButton) {
         layoutToggleButton.addEventListener('click', function() {
-            if (window.innerWidth < 768) {
+            if (isCompactLayout()) {
                 var isOpen = !$('.sidebar').hasClass('show');
-                $('.sidebar').toggleClass('show', isOpen);
-                $('.sidebar-backdrop').toggleClass('show', isOpen);
-                $('body').toggleClass('sidebar-open', isOpen);
+                setMobileSidebarOpen(isOpen);
                 return;
             }
 
@@ -217,27 +312,30 @@ $(document).ready(function() {
         });
     }
 
+    var wasCompactLayout = isCompactLayout();
     $(window).on('resize', function() {
-        if (window.innerWidth >= 768) {
+        var compactLayout = isCompactLayout();
+        if (!compactLayout) {
             restoreSidebarState();
         } else {
             document.body.classList.remove('sidebar-hidden sidebar-resizing');
-            closeSidebar();
+            if (!wasCompactLayout) {
+                closeSidebar();
+            }
         }
+        wasCompactLayout = compactLayout;
     });
 
     // Sidebar toggle for mobile
     $('.mobile-menu-btn').on('click', function() {
         var isOpen = !$('.sidebar').hasClass('show');
-        $('.sidebar').toggleClass('show', isOpen);
-        $('.sidebar-backdrop').toggleClass('show', isOpen);
-        $('body').toggleClass('sidebar-open', isOpen);
+        setMobileSidebarOpen(isOpen);
     });
 
     $('.sidebar-close-btn, .sidebar-backdrop').on('click', closeSidebar);
 
     $('.sidebar .nav-link').on('click', function() {
-        if ($(window).width() < 768) {
+        if (isCompactLayout()) {
             closeSidebar();
         }
     });
@@ -246,8 +344,18 @@ $(document).ready(function() {
     $(document).on('click', function(event) {
         if (!$(event.target).closest('.sidebar').length && 
             !$(event.target).closest('.mobile-menu-btn').length &&
-            $(window).width() < 768) {
+            !$(event.target).closest('.layout-toggle-btn').length &&
+            isCompactLayout()) {
             closeSidebar();
+        }
+    });
+
+    $(document).on('keydown', function(event) {
+        if (event.key === 'Escape' && isCompactLayout() && $('.sidebar').hasClass('show')) {
+            closeSidebar();
+            if (layoutToggleButton) {
+                layoutToggleButton.focus();
+            }
         }
     });
     
@@ -388,6 +496,15 @@ $(document).ready(function() {
     
     // Initialize data tables
     initializeDataTables();
+
+    // Keep full data readable on phones by labelling every value.
+    enhanceResponsiveTables();
+    $(document).on('init.dt.responsiveTable draw.dt.responsiveTable', function(event, settings) {
+        if (settings && settings.nTable) {
+            enhanceResponsiveTable(settings.nTable);
+        }
+    });
+    setTimeout(enhanceResponsiveTables, 300);
 
     // Add PNG download buttons to every Chart.js canvas.
     addChartDownloadButtons();
@@ -602,7 +719,21 @@ function initializeDataTables() {
     if ($.fn.DataTable) {
         $.extend(true, $.fn.DataTable.defaults, {
             "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json"
+                "emptyTable": "Belum ada data yang tersedia",
+                "info": "Menampilkan _START_–_END_ dari _TOTAL_ data",
+                "infoEmpty": "Menampilkan 0 data",
+                "infoFiltered": "(disaring dari _MAX_ data)",
+                "lengthMenu": "Tampilkan _MENU_ data",
+                "loadingRecords": "Memuat data...",
+                "processing": "Memproses...",
+                "search": "Cari:",
+                "zeroRecords": "Data yang dicari tidak ditemukan",
+                "paginate": {
+                    "first": "Pertama",
+                    "last": "Terakhir",
+                    "next": "Berikutnya",
+                    "previous": "Sebelumnya"
+                }
             },
             "order": [],
             "pagingType": "simple_numbers",

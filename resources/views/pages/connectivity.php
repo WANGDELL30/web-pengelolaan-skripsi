@@ -953,7 +953,21 @@ function escapeHtml(value) {
 $(document).ready(function() {
     $('.data-table').DataTable({
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json"
+            "emptyTable": "Belum ada data yang tersedia",
+            "info": "Menampilkan _START_–_END_ dari _TOTAL_ data",
+            "infoEmpty": "Menampilkan 0 data",
+            "infoFiltered": "(disaring dari _MAX_ data)",
+            "lengthMenu": "Tampilkan _MENU_ data",
+            "loadingRecords": "Memuat data...",
+            "processing": "Memproses...",
+            "search": "Cari:",
+            "zeroRecords": "Data yang dicari tidak ditemukan",
+            "paginate": {
+                "first": "Pertama",
+                "last": "Terakhir",
+                "next": "Berikutnya",
+                "previous": "Sebelumnya"
+            }
         },
         "order": [[0, 'asc']],
         "columnDefs": [

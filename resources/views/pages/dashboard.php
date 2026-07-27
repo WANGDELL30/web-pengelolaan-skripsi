@@ -152,7 +152,7 @@ foreach ($dashboardDistanceCharts as $index => $config) {
 ?>
 
 <!-- Dashboard Content -->
-<div class="row mb-4">
+<div class="row mb-4 dashboard-stat-grid">
     <!-- Total Connectivity Tests -->
     <div class="col-xl-3 col-md-6 mb-4">
         <div class="card stat-card h-100">
@@ -221,7 +221,7 @@ foreach ($dashboardDistanceCharts as $index => $config) {
     </div>
 </div>
 
-<div class="row mb-4">
+<div class="row mb-4 dashboard-stat-grid">
     <!-- Average Latency -->
     <div class="col-xl-3 col-md-6 mb-4">
         <div class="card h-100">
@@ -291,7 +291,7 @@ foreach ($dashboardDistanceCharts as $index => $config) {
     </div>
 </div>
 
-<div class="row mb-4">
+<div class="row mb-4 dashboard-stat-grid">
     <!-- Packet Loss -->
     <div class="col-xl-3 col-md-6 mb-4">
         <div class="card h-100">
