@@ -4,7 +4,9 @@
  * Handles LuCI ubus authentication and returns JSON data.
  */
 session_start();
+require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../app/Helpers/functions.php';
+require_once __DIR__ . '/../app/Helpers/master_device.php';
 
 if (!isLoggedIn()) {
     http_response_code(403);
@@ -12,15 +14,74 @@ if (!isLoggedIn()) {
     echo json_encode(['error' => 'Login diperlukan']);
     exit;
 }
-session_write_close();
 
 header('Content-Type: application/json; charset=utf-8');
 
-$masterHost = '192.168.1.50';
-$masterBaseUrl = 'http://' . $masterHost;
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    if (!canManageProject()) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Hanya admin yang dapat mengubah alamat master.']);
+        exit;
+    }
+
+    $payload = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($payload)) {
+        $payload = $_POST;
+    }
+
+    $sessionToken = $_SESSION['master_config_csrf'] ?? '';
+    $requestToken = (string) ($payload['csrf_token'] ?? '');
+    if ($sessionToken === '' || !hash_equals($sessionToken, $requestToken)) {
+        http_response_code(419);
+        echo json_encode(['error' => 'Sesi pengaturan kedaluwarsa. Muat ulang halaman.']);
+        exit;
+    }
+
+    if (($payload['action'] ?? '') !== 'save_config') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Aksi pengaturan tidak dikenali.']);
+        exit;
+    }
+
+    try {
+        $oldHost = masterDeviceGetHost($pdo);
+        $masterHost = masterDeviceSaveHost($pdo, $payload['host'] ?? '');
+
+        foreach ([$oldHost, $masterHost] as $tokenHost) {
+            @unlink(masterDeviceTokenFile('sysauth', $tokenHost));
+            @unlink(masterDeviceTokenFile('ubus', $tokenHost));
+        }
+        @unlink(sys_get_temp_dir() . '/luci_sysauth_token.json');
+        @unlink(sys_get_temp_dir() . '/luci_ubus_token.json');
+
+        $config = masterDeviceGetConfig($pdo);
+        $connection = masterDeviceCheckHttp($masterHost);
+        echo json_encode([
+            'success' => true,
+            'message' => $connection['online']
+                ? 'Alamat master tersimpan dan panel dapat dijangkau.'
+                : 'Alamat tersimpan, tetapi panel belum dapat dijangkau.',
+            'config' => $config,
+            'connection' => $connection,
+        ]);
+    } catch (InvalidArgumentException $exception) {
+        http_response_code(422);
+        echo json_encode(['error' => $exception->getMessage()]);
+    } catch (Throwable $exception) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Gagal menyimpan alamat master.']);
+    }
+    exit;
+}
+
+session_write_close();
+
+$masterConfig = masterDeviceGetConfig($pdo);
+$masterHost = $masterConfig['connect_host'];
+$masterBaseUrl = $masterConfig['connect_base_url'];
 $luciUser = 'root';
 $luciPass = 'psn2026';
-$tokenFile = sys_get_temp_dir() . '/luci_ubus_token.json';
+$tokenFile = masterDeviceTokenFile('ubus', $masterHost);
 
 function ubusRequest($masterBaseUrl, $sessionToken, $subsystem, $method, $params = []) {
     $ch = curl_init($masterBaseUrl . '/ubus');

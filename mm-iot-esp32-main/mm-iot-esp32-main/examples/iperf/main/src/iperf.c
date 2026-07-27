@@ -50,6 +50,17 @@
 
 /* ------------------------ Configuration options ------------------------ */
 
+/**
+ * Stability-first profile for diagnosing the HaLow link.
+ *
+ * GPS, CoT, HTTP and text messaging remain available in this source, but are
+ * not started while this profile is enabled. Set it to 0 after iperf is stable
+ * to restore the normal application services.
+ */
+#ifndef IPERF_STABILITY_PROFILE
+#define IPERF_STABILITY_PROFILE         1
+#endif
+
 /** Iperf configurations. */
 enum iperf_type
 {
@@ -61,16 +72,23 @@ enum iperf_type
 
 #ifndef IPERF_TYPE
 /** Type of iperf instance to start. */
+#if IPERF_STABILITY_PROFILE
+#define IPERF_TYPE                      IPERF_TCP_SERVER
+#else
 #define IPERF_TYPE                      IPERF_UDP_SERVER
+#endif
 #endif
 
 #ifndef IPERF_AUTOSTART
 /**
- * Set ke 0 untuk menonaktifkan iperf server saat boot. Sangat membantu kalau
- * slave hanya dipakai sebagai sumber GPS + CoT lewat HaLow, karena iperf yang
- * standby tetap menyita airtime dan membuat polling HTTP terasa lambat.
+ * Start iperf automatically for the stability profile. Outside that profile it
+ * stays disabled so the normal GPS + CoT + HTTP workload is not disturbed.
  */
+#if IPERF_STABILITY_PROFILE
+#define IPERF_AUTOSTART                 1
+#else
 #define IPERF_AUTOSTART                 0
+#endif
 #endif
 
 #ifndef IPERF_SERVER_IP
@@ -95,6 +113,24 @@ enum iperf_type
 #define IPERF_SERVER_PORT               5001
 #endif
 
+#ifndef IPERF_UDP_TARGET_KBITPS
+/**
+ * Conservative initial UDP rate for a 1 MHz S1G channel. Increase gradually
+ * only after the link is stable (for example 1000, 2000, then 4000 kbit/s).
+ */
+#define IPERF_UDP_TARGET_KBITPS         1000
+#endif
+
+#ifndef IPERF_UDP_PACKET_SIZE
+/** Smaller datagrams reduce burst pressure on a narrow S1G channel. */
+#define IPERF_UDP_PACKET_SIZE           1024
+#endif
+
+#ifndef IPERF_HEALTH_INTERVAL_MS
+/** Interval for low-rate ARP refresh and link-health diagnostics. */
+#define IPERF_HEALTH_INTERVAL_MS        30000
+#endif
+
 #ifndef DHCP_RESERVED_SLAVE_IP
 /**
  * Address reserved for this slave on the DHCP server. This does not force a
@@ -105,7 +141,11 @@ enum iperf_type
 
 #ifndef ATAK_COT_ENABLE
 /** Enables periodic CoT unicast messages to ATAK. */
+#if IPERF_STABILITY_PROFILE
+#define ATAK_COT_ENABLE                 0
+#else
 #define ATAK_COT_ENABLE                 1
+#endif
 #endif
 
 #ifndef ATAK_COT_IP
@@ -215,7 +255,11 @@ enum iperf_type
 
 #ifndef ATAK_GPS_ENABLE
 /** Enables NEO-7M/NEO-M8N GPS/NMEA position updates over UART with fixed-position fallback. */
+#if IPERF_STABILITY_PROFILE
+#define ATAK_GPS_ENABLE                 0
+#else
 #define ATAK_GPS_ENABLE                 1
+#endif
 #endif
 
 #ifndef ATAK_GPS_UART_NUM
@@ -326,7 +370,11 @@ enum iperf_type
 
 #ifndef STATUS_WEB_ENABLE
 /** Enable a small embedded web UI and JSON API on the ESP32. */
+#if IPERF_STABILITY_PROFILE
+#define STATUS_WEB_ENABLE               0
+#else
 #define STATUS_WEB_ENABLE               1
+#endif
 #endif
 
 #ifndef STATUS_WEB_PORT
@@ -341,7 +389,11 @@ enum iperf_type
 
 #ifndef TEXT_MESSAGE_ENABLE
 /** Enables a lightweight text message inbox API on the ESP32 slave. */
+#if IPERF_STABILITY_PROFILE
+#define TEXT_MESSAGE_ENABLE             0
+#else
 #define TEXT_MESSAGE_ENABLE             1
+#endif
 #endif
 
 #ifndef TEXT_MESSAGE_MAX_LEN
@@ -3234,6 +3286,15 @@ static void iperf_report_handler(const struct mmiperf_report *report, void *arg,
     printf("  Transferred: %lu %cBytes, duration: %lu ms, bandwidth: %lu kbps\n",
            bytes_transferred_formatted, units[bytes_transferred_unit_index],
            report->duration_ms, report->bandwidth_kbitpsec);
+    if ((report->report_type == MMIPERF_UDP_DONE_SERVER) ||
+        (report->report_type == MMIPERF_UDP_DONE_CLIENT))
+    {
+        printf("  UDP frames: TX=%lu, RX=%lu, errors=%lu, out-of-order=%lu\n",
+               (unsigned long)report->tx_frames,
+               (unsigned long)report->rx_frames,
+               (unsigned long)report->error_count,
+               (unsigned long)report->out_of_sequence_frames);
+    }
     printf("\n");
     printf("COMMAND_TIMING source=\"ESP32 local\" command_type=\"iperf\" "
            "command_sent_time_ms=%lu command_received_time_ms=%lu "
@@ -3333,10 +3394,14 @@ static void start_udp_client(void)
         args.amount *= 100;
     }
     args.report_fn = iperf_report_handler;
+    args.target_bw = IPERF_UDP_TARGET_KBITPS;
+    args.packet_size = IPERF_UDP_PACKET_SIZE;
 
     mmiperf_start_udp_client(&args);
     iperf_command_received_time_ms = mmosal_get_time_ms();
-    printf("\nIperf UDP client started, waiting for completion...\n");
+    printf("\nIperf UDP client started at %u kbit/s with %u-byte datagrams, "
+           "waiting for completion...\n",
+           (unsigned)args.target_bw, (unsigned)args.packet_size);
 }
 
 /** Start iperf as a TCP server. */
@@ -3411,16 +3476,19 @@ static void start_udp_server(void)
     status = mmipal_get_ip_config(&ip_config);
     if (status == MMIPAL_SUCCESS)
     {
-        printf("Execute cmd on AP 'iperf -c %s -p %u -i 1 -u -b 20M' for IPv4\n",
-               ip_config.ip_addr, args.local_port);
+        printf("Execute cmd on AP 'iperf -c %s -p %u -i 1 -u -b %uK -l %u' for IPv4\n",
+               ip_config.ip_addr, args.local_port,
+               (unsigned)IPERF_UDP_TARGET_KBITPS, (unsigned)IPERF_UDP_PACKET_SIZE);
     }
 
     struct mmipal_ip6_config ip6_config;
     status = mmipal_get_ip6_config(&ip6_config);
     if (status == MMIPAL_SUCCESS)
     {
-        printf("Execute cmd on AP 'iperf -c %s%%wlan0 -p %u -i 1 -V -u -b 20M' for IPv6\n",
-               ip6_config.ip6_addr[0], args.local_port);
+        printf("Execute cmd on AP 'iperf -c %s%%wlan0 -p %u -i 1 -V -u -b %uK -l %u' "
+               "for IPv6\n",
+               ip6_config.ip6_addr[0], args.local_port,
+               (unsigned)IPERF_UDP_TARGET_KBITPS, (unsigned)IPERF_UDP_PACKET_SIZE);
     }
 }
 
@@ -3431,6 +3499,11 @@ static void start_udp_server(void)
 void app_main(void)
 {
     printf("\n\nMorse Iperf Demo (Built " __DATE__ " " __TIME__ ")\n\n");
+#if IPERF_STABILITY_PROFILE
+    printf("Stability profile ACTIVE: power save, GPS, CoT, HTTP and text messaging are disabled.\n");
+    printf("Run TCP first; start UDP at %u kbit/s only after TCP is stable.\n\n",
+           (unsigned)IPERF_UDP_TARGET_KBITPS);
+#endif
 
     /* Initialize and connect to Wi-Fi, blocks till connected */
     app_wlan_init();
@@ -3478,12 +3551,13 @@ void app_main(void)
     }
 #else
     (void)iperf_mode;
-    printf("iperf autostart disabled (IPERF_AUTOSTART=0). HaLow airtime fokus untuk GPS+CoT+HTTP.\n");
+    printf("iperf autostart disabled (IPERF_AUTOSTART=0).\n");
 #endif
 
     while (true)
     {
         app_wlan_arp_send();
-        mmosal_task_sleep(5000);
+        app_wlan_log_health();
+        mmosal_task_sleep(IPERF_HEALTH_INTERVAL_MS);
     }
 }

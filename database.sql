@@ -26,6 +26,18 @@ INSERT INTO users (username, password, role, full_name, email, notes) VALUES
 ('viewer', '$2y$10$nTEDKXvfEWtCbiXSFHmBNOc6kqfr0fibJTTF47Kwtli4RYexCgDTW', 'viewer', 'Read Only Viewer', 'viewer@wifiholow.test', 'User viewer read-only')
 ON DUPLICATE KEY UPDATE username = VALUES(username);
 
+-- Application settings. adminpsn.local follows the master's DHCP address
+-- through mDNS, while the dashboard also allows an admin to enter a new IP.
+CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key VARCHAR(100) NOT NULL PRIMARY KEY,
+    setting_value TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO app_settings (setting_key, setting_value)
+VALUES ('master_host', 'adminpsn.local')
+ON DUPLICATE KEY UPDATE setting_key = VALUES(setting_key);
+
 -- Test locations table
 CREATE TABLE test_locations (
     id INT AUTO_INCREMENT PRIMARY KEY,

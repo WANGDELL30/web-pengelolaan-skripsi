@@ -8,7 +8,9 @@
  */
 
 session_start();
+require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../app/Helpers/functions.php';
+require_once __DIR__ . '/../app/Helpers/master_device.php';
 
 if (!isLoggedIn()) {
     http_response_code(403);
@@ -27,9 +29,12 @@ if (!canManageProject()) {
 $appSessionName = session_name();
 session_write_close();
 
-$masterHost = '192.168.1.50';
-$masterBaseUrl = 'http://' . $masterHost;
+$masterConfig = masterDeviceGetConfig($pdo);
+$masterHost = $masterConfig['connect_host'];
+$masterBaseUrl = $masterConfig['connect_base_url'];
 $proxyBasePath = $_SERVER['SCRIPT_NAME'] ?? ('/' . basename(__FILE__));
+$sysauthTokenFile = masterDeviceTokenFile('sysauth', $masterHost);
+$ubusTokenFile = masterDeviceTokenFile('ubus', $masterHost);
 
 // LuCI auto-login credentials
 $luciUser = 'root';
@@ -39,9 +44,7 @@ $luciPass = 'psn2026';
  * Get or create a valid LuCI sysauth token.
  * Caches the token in a temp file so it persists across requests.
  */
-function masterProxyGetSysauth($masterBaseUrl, $luciUser, $luciPass) {
-    $tokenFile = sys_get_temp_dir() . '/luci_sysauth_token.json';
-
+function masterProxyGetSysauth($masterBaseUrl, $luciUser, $luciPass, $tokenFile) {
     // Check cached token
     if (file_exists($tokenFile)) {
         $cached = json_decode(file_get_contents($tokenFile), true);
@@ -104,16 +107,15 @@ function masterProxyGetSysauth($masterBaseUrl, $luciUser, $luciPass) {
 /**
  * Invalidate cached LuCI token so next request re-authenticates.
  */
-function masterProxyInvalidateToken() {
-    @unlink(sys_get_temp_dir() . '/luci_sysauth_token.json');
-    @unlink(sys_get_temp_dir() . '/luci_ubus_token.json');
+function masterProxyInvalidateToken($sysauthTokenFile, $ubusTokenFile) {
+    @unlink($sysauthTokenFile);
+    @unlink($ubusTokenFile);
 }
 
 /**
  * Get a ubus RPC session token via ubus login.
  */
-function masterProxyGetUbusToken($masterBaseUrl, $luciUser, $luciPass) {
-    $tokenFile = sys_get_temp_dir() . '/luci_ubus_token.json';
+function masterProxyGetUbusToken($masterBaseUrl, $luciUser, $luciPass, $tokenFile) {
     if (file_exists($tokenFile)) {
         $cached = json_decode(file_get_contents($tokenFile), true);
         if ($cached && !empty($cached['token']) && ($cached['expires'] ?? 0) > time()) {
@@ -358,6 +360,19 @@ try {
         return proxyBase + '?path=' + encodeURIComponent(path);
     }
 
+    /*
+     * LuCI sometimes formats an asset URL after L.resource() returns it, for
+     * example L.resource('icons/wifi%s.png').format(''). An encoded URL
+     * contains %2F sequences which LuCI's formatter mistakes for directives.
+     * Asset paths therefore keep their slashes literal; the browser safely
+     * encodes any remaining special characters when issuing the request.
+     */
+    function proxyAssetUrl(path) {
+        path = String(path || '/luci-static/resources');
+        if (path.charAt(0) !== '/') path = '/' + path;
+        return proxyBase + '?path=' + path;
+    }
+
     function normalizeParts(values) {
         var parts = [];
         function collect(value) {
@@ -445,17 +460,17 @@ try {
         };
         window.L.resource = function() {
             var path = normalizeParts(arguments);
-            return proxyUrl('/luci-static/resources/' + path);
+            return proxyAssetUrl('/luci-static/resources/' + path);
         };
         window.L.media = function() {
             var path = normalizeParts(arguments);
-            return proxyUrl('/luci-static/openmanetargon/' + path);
+            return proxyAssetUrl('/luci-static/openmanetargon/' + path);
         };
         window.L.env = window.L.env || {};
-        window.L.env.base_url = proxyUrl('/luci-static/resources');
+        window.L.env.base_url = proxyAssetUrl('/luci-static/resources');
         window.L.env.scriptname = proxyUrl('/cgi-bin/luci');
-        window.L.env.resource = proxyUrl('/luci-static/resources');
-        window.L.env.media = proxyUrl('/luci-static/openmanetargon');
+        window.L.env.resource = proxyAssetUrl('/luci-static/resources');
+        window.L.env.media = proxyAssetUrl('/luci-static/openmanetargon');
         window.L.env.ubuspath = proxyUrl('/ubus/');
 
         // Inject the ubus RPC session token
@@ -625,7 +640,12 @@ if (!in_array($method, ['GET', 'HEAD'], true)) {
 $forwardCookie = masterProxyForwardCookieHeader($_SERVER['HTTP_COOKIE'] ?? '', $appSessionName);
 
 // Inject LuCI auto-login sysauth cookie
-$sysauthToken = masterProxyGetSysauth($masterBaseUrl, $luciUser, $luciPass);
+$sysauthToken = masterProxyGetSysauth(
+    $masterBaseUrl,
+    $luciUser,
+    $luciPass,
+    $sysauthTokenFile
+);
 if ($sysauthToken !== '') {
     // Remove any existing sysauth from forwarded cookies, use our auto-login one
     $forwardCookie = preg_replace('/\bsysauth[^=]*=[^;]*(;\s*)?/i', '', $forwardCookie);
@@ -644,8 +664,13 @@ curl_close($ch);
 
 // If we got 403, token may be expired - retry with fresh login
 if ($statusCode === 403 || ($statusCode >= 300 && $statusCode < 400 && stripos(implode(' ', array_map(function($h) { return $h[1]; }, $responseHeaders)), 'login') !== false)) {
-    masterProxyInvalidateToken();
-    $sysauthToken = masterProxyGetSysauth($masterBaseUrl, $luciUser, $luciPass);
+    masterProxyInvalidateToken($sysauthTokenFile, $ubusTokenFile);
+    $sysauthToken = masterProxyGetSysauth(
+        $masterBaseUrl,
+        $luciUser,
+        $luciPass,
+        $sysauthTokenFile
+    );
     if ($sysauthToken !== '') {
         $responseHeaders = [];
         $statusCode = 200;
@@ -727,5 +752,10 @@ foreach ($responseHeaders as [$name, $value]) {
     header($name . ': ' . $value, false);
 }
 
-$ubusToken = masterProxyGetUbusToken($masterBaseUrl, $luciUser, $luciPass);
+$ubusToken = masterProxyGetUbusToken(
+    $masterBaseUrl,
+    $luciUser,
+    $luciPass,
+    $ubusTokenFile
+);
 echo masterProxyRewriteBody($body, $contentType, $targetPath, $masterHost, $proxyBasePath, $ubusToken);

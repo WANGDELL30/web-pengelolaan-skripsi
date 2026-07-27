@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../app/Helpers/functions.php';
+require_once __DIR__ . '/../app/Helpers/master_device.php';
 require_once __DIR__ . '/../app/Controllers/LoginController.php';
 require_once __DIR__ . '/../app/Controllers/DashboardController.php';
 
@@ -107,7 +108,11 @@ switch ($page) {
     case 'master-config':
         $title = 'Master Web Configuration';
         $subtitle = 'WiFi HaLow Master device panel';
-        $content = renderView(__DIR__ . '/../resources/views/pages/master_config.php');
+        $masterDeviceConfig = masterDeviceGetConfig($pdo);
+        $content = renderView(
+            __DIR__ . '/../resources/views/pages/master_config.php',
+            compact('masterDeviceConfig')
+        );
         break;
     
     case 'command':

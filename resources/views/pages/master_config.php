@@ -1,10 +1,18 @@
 <?php
-$masterConfigBaseUrl = 'http://192.168.1.50';
+$masterConfigHost = $masterDeviceConfig['host'] ?? 'adminpsn.local';
+$masterConfigBaseUrl = $masterDeviceConfig['base_url'] ?? ('http://' . $masterConfigHost);
+$masterConfigResolvedIp = $masterDeviceConfig['resolved_ip'] ?? null;
+$masterConfigEnvironmentOverride = !empty($masterDeviceConfig['environment_override']);
 $masterConfigPath = '/cgi-bin/luci/admin/status/overview';
 $masterConfigUrl = rtrim($masterConfigBaseUrl, '/') . $masterConfigPath;
 $masterConfigRootUrl = rtrim($masterConfigBaseUrl, '/') . '/';
 $masterConfigProxyUrl = 'master_proxy.php?path=' . rawurlencode($masterConfigPath);
 $canManageProject = canManageProject();
+
+if (empty($_SESSION['master_config_csrf'])) {
+    $_SESSION['master_config_csrf'] = bin2hex(random_bytes(32));
+}
+$masterConfigCsrf = $_SESSION['master_config_csrf'];
 ?>
 
 <style>
@@ -124,6 +132,25 @@ $canManageProject = canManageProject();
         font-size: 0.9rem;
     }
 
+    .master-connection-settings {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) auto;
+        gap: 12px;
+        align-items: end;
+    }
+
+    .master-connection-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .master-config-feedback {
+        display: none;
+        margin-top: 12px;
+    }
+
     @media (max-width: 768px) {
         .master-config-toolbar {
             align-items: stretch;
@@ -150,6 +177,10 @@ $canManageProject = canManageProject();
         .master-config-frame-wrap {
             height: calc(100vh - 280px);
             min-height: 480px;
+        }
+
+        .master-connection-settings {
+            grid-template-columns: 1fr;
         }
     }
 
@@ -294,6 +325,65 @@ $canManageProject = canManageProject();
     </div>
 </div>
 
+<?php if ($canManageProject): ?>
+<div class="content-section">
+    <form id="masterConnectionForm">
+        <div class="master-connection-settings">
+            <div>
+                <label for="masterHost" class="form-label fw-semibold">
+                    IP atau hostname WiFi HaLow Master
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text">http://</span>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="masterHost"
+                        value="<?php echo htmlspecialchars($masterConfigHost); ?>"
+                        placeholder="adminpsn.local atau 192.168.1.8"
+                        autocomplete="off"
+                        <?php echo $masterConfigEnvironmentOverride ? 'disabled' : ''; ?>
+                        required
+                    >
+                </div>
+            </div>
+            <button
+                type="submit"
+                class="btn btn-primary"
+                id="saveMasterHost"
+                <?php echo $masterConfigEnvironmentOverride ? 'disabled' : ''; ?>
+            >
+                <i class="fas fa-plug"></i> Simpan &amp; Hubungkan
+            </button>
+        </div>
+
+        <div class="master-connection-meta">
+            <span class="badge bg-primary">
+                Aktif: <?php echo htmlspecialchars($masterConfigHost); ?>
+            </span>
+            <?php if ($masterConfigResolvedIp): ?>
+                <span class="badge bg-success">
+                    IP saat ini: <?php echo htmlspecialchars($masterConfigResolvedIp); ?>
+                </span>
+            <?php else: ?>
+                <span class="badge bg-warning text-dark">Hostname belum ter-resolve</span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-text mt-2">
+            Gunakan <strong>adminpsn.local</strong> agar alamat mengikuti DHCP saat pindah router.
+            Jika hostname tidak ditemukan, lihat DHCP Clients pada router lalu masukkan IP master yang baru.
+        </div>
+        <?php if ($masterConfigEnvironmentOverride): ?>
+            <div class="alert alert-info mt-3 mb-0">
+                Alamat dikunci oleh environment variable <code>MASTER_HOST</code>.
+            </div>
+        <?php endif; ?>
+        <div class="alert master-config-feedback mb-0" id="masterConfigFeedback" role="alert"></div>
+    </form>
+</div>
+<?php endif; ?>
+
 <!-- Analytics Dashboard -->
 <div class="master-analytics-grid" id="masterAnalytics">
     <!-- Status Card -->
@@ -395,7 +485,9 @@ $canManageProject = canManageProject();
     </div>
 
     <div class="master-config-note">
-        Panel ditampilkan melalui proxy lokal karena firmware LuCI memakai proteksi X-Frame-Options. Jika login atau halaman tertentu tetap ditolak, gunakan tombol Tab untuk membuka panel langsung.
+        Panel ditampilkan melalui proxy lokal karena firmware LuCI memakai proteksi X-Frame-Options.
+        Setelah menekan Enable/Disable atau mengubah pengaturan, tekan <strong>Save &amp; Apply</strong>
+        di bagian bawah panel dan tunggu proses refresh selesai.
     </div>
 </div>
 <?php else: ?>
@@ -414,6 +506,7 @@ $canManageProject = canManageProject();
 
 <script>
 $(function() {
+    var masterConfigCsrf = <?php echo json_encode($masterConfigCsrf); ?>;
     var zoom = parseFloat(localStorage.getItem('masterConfigZoom') || '1');
     var minZoom = 0.5;
     var maxZoom = 2;
@@ -422,6 +515,52 @@ $(function() {
     var scaleWrap = document.getElementById('masterConfigScale');
     var zoomLevel = document.getElementById('masterConfigZoomLevel');
     var fullscreenButton = document.getElementById('fullscreenMasterConfig');
+
+    $('#masterConnectionForm').on('submit', function(event) {
+        event.preventDefault();
+
+        var host = $.trim($('#masterHost').val());
+        var button = $('#saveMasterHost');
+        var feedback = $('#masterConfigFeedback');
+
+        button.prop('disabled', true);
+        feedback
+            .removeClass('alert-success alert-warning alert-danger')
+            .addClass('alert-info')
+            .text('Menyimpan dan memeriksa koneksi master...')
+            .show();
+
+        $.ajax({
+            url: 'master_api.php',
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify({
+                action: 'save_config',
+                host: host,
+                csrf_token: masterConfigCsrf
+            }),
+            success: function(response) {
+                var online = response.connection && response.connection.online;
+                feedback
+                    .removeClass('alert-info')
+                    .addClass(online ? 'alert-success' : 'alert-warning')
+                    .text(response.message || 'Alamat master tersimpan.');
+
+                window.setTimeout(function() {
+                    window.location.reload();
+                }, 900);
+            },
+            error: function(xhr) {
+                var response = xhr.responseJSON || {};
+                feedback
+                    .removeClass('alert-info')
+                    .addClass('alert-danger')
+                    .text(response.error || 'Alamat master gagal disimpan.');
+                button.prop('disabled', false);
+            }
+        });
+    });
 
     function clampZoom(value) {
         return Math.min(maxZoom, Math.max(minZoom, value));
