@@ -2,6 +2,7 @@
 .env.*
 !.env.example
 config/database.local.php
+config/cloudflare_access.local.php
 
 vendor/
 node_modules/

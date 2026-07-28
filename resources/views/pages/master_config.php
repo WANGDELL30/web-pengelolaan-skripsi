@@ -7,6 +7,17 @@ $masterConfigPath = '/cgi-bin/luci/admin/status/overview';
 $masterConfigUrl = rtrim($masterConfigBaseUrl, '/') . $masterConfigPath;
 $masterConfigRootUrl = rtrim($masterConfigBaseUrl, '/') . '/';
 $masterConfigProxyUrl = 'master_proxy.php?path=' . rawurlencode($masterConfigPath);
+$masterPublicBaseUrl = rtrim(
+    $masterDeviceConfig['public_url'] ?? 'https://luci.arndilhmzbr.engineer',
+    '/'
+);
+$masterPublicUrl = $masterPublicBaseUrl . '/cgi-bin/luci/';
+$useMasterLocalProxy = !empty($masterDeviceConfig['request_is_local']);
+$cloudflareServiceConfigured = !empty(
+    $masterDeviceConfig['cloudflare_service_configured']
+);
+$useMasterServerProxy = $useMasterLocalProxy || $cloudflareServiceConfigured;
+$masterBrowserUrl = $useMasterLocalProxy ? $masterConfigUrl : $masterPublicUrl;
 $canManageProject = canManageProject();
 
 if (empty($_SESSION['master_config_csrf'])) {
@@ -130,6 +141,40 @@ $masterConfigCsrf = $_SESSION['master_config_csrf'];
         color: #6c757d;
         border-top: 1px solid #e9ecef;
         font-size: 0.9rem;
+    }
+
+    .master-tunnel-launch {
+        min-height: 420px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 20px;
+        text-align: center;
+        background:
+            radial-gradient(circle at top, rgba(13, 110, 253, 0.1), transparent 48%),
+            #f8f9fa;
+    }
+
+    .master-tunnel-launch-card {
+        width: min(620px, 100%);
+        padding: 30px;
+        border: 1px solid #dee2e6;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 10px 30px rgba(30, 60, 114, 0.08);
+    }
+
+    .master-tunnel-launch-icon {
+        width: 64px;
+        height: 64px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+        border-radius: 50%;
+        background: rgba(13, 110, 253, 0.12);
+        color: #0d6efd;
+        font-size: 1.65rem;
     }
 
     .master-connection-settings {
@@ -313,11 +358,16 @@ $masterConfigCsrf = $_SESSION['master_config_csrf'];
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
             <h4 class="mb-1"><i class="fas fa-sliders"></i> Master Web Configuration</h4>
-            <p class="text-muted mb-0">Akses panel konfigurasi WiFi HaLow Master di jaringan lokal.</p>
+            <p class="text-muted mb-0">
+                <?php echo $useMasterLocalProxy
+                    ? 'Akses panel konfigurasi WiFi HaLow Master di jaringan lokal.'
+                    : 'Akses aman panel WiFi HaLow Master melalui Cloudflare Tunnel.'; ?>
+            </p>
         </div>
         <?php if ($canManageProject): ?>
-            <a class="btn btn-primary" href="<?php echo htmlspecialchars($masterConfigUrl); ?>" target="_blank" rel="noopener">
-                <i class="fas fa-up-right-from-square"></i> Buka Tab Baru
+            <a class="btn btn-primary" href="<?php echo htmlspecialchars($masterBrowserUrl); ?>" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-up-right-from-square"></i>
+                <?php echo $useMasterLocalProxy ? 'Buka Tab Baru' : 'Buka LuCI via Cloudflare'; ?>
             </a>
         <?php else: ?>
             <span class="badge bg-secondary"><i class="fas fa-eye"></i> Mode Viewer</span>
@@ -325,7 +375,7 @@ $masterConfigCsrf = $_SESSION['master_config_csrf'];
     </div>
 </div>
 
-<?php if ($canManageProject): ?>
+<?php if ($canManageProject && $useMasterLocalProxy): ?>
 <div class="content-section">
     <form id="masterConnectionForm">
         <div class="master-connection-settings">
@@ -442,9 +492,10 @@ $masterConfigCsrf = $_SESSION['master_config_csrf'];
     <div class="master-config-toolbar">
         <div class="master-config-address">
             <i class="fas fa-network-wired"></i>
-            <span><?php echo htmlspecialchars($masterConfigUrl); ?></span>
+            <span><?php echo htmlspecialchars($useMasterLocalProxy ? $masterConfigUrl : $masterPublicUrl); ?></span>
         </div>
         <div class="master-config-actions">
+            <?php if ($useMasterServerProxy): ?>
             <div class="master-config-zoom-controls" aria-label="Kontrol zoom master config">
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="zoomOutMasterConfig" title="Zoom out">
                     <i class="fas fa-magnifying-glass-minus"></i>
@@ -463,15 +514,19 @@ $masterConfigCsrf = $_SESSION['master_config_csrf'];
             <button type="button" class="btn btn-outline-primary btn-sm" id="reloadMasterConfig">
                 <i class="fas fa-rotate-right"></i> Reload
             </button>
+            <?php endif; ?>
+            <?php if ($useMasterLocalProxy): ?>
             <a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($masterConfigRootUrl); ?>" target="_blank" rel="noopener">
                 <i class="fas fa-network-wired"></i> IP
             </a>
-            <a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($masterConfigUrl); ?>" target="_blank" rel="noopener">
+            <?php endif; ?>
+            <a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($masterBrowserUrl); ?>" target="_blank" rel="noopener noreferrer">
                 <i class="fas fa-up-right-from-square"></i> Tab
             </a>
         </div>
     </div>
 
+    <?php if ($useMasterServerProxy): ?>
     <div class="master-config-frame-wrap">
         <div class="master-config-frame-scale" id="masterConfigScale">
             <iframe
@@ -485,10 +540,40 @@ $masterConfigCsrf = $_SESSION['master_config_csrf'];
     </div>
 
     <div class="master-config-note">
-        Panel ditampilkan melalui proxy lokal karena firmware LuCI memakai proteksi X-Frame-Options.
+        Panel ditampilkan melalui proxy
+        <?php echo $useMasterLocalProxy
+            ? 'lokal'
+            : 'hosting dengan autentikasi Cloudflare Access Service Token'; ?>
+        karena firmware LuCI memakai proteksi X-Frame-Options.
         Setelah menekan Enable/Disable atau mengubah pengaturan, tekan <strong>Save &amp; Apply</strong>
         di bagian bawah panel dan tunggu proses refresh selesai.
     </div>
+    <?php else: ?>
+    <div class="master-tunnel-launch">
+        <div class="master-tunnel-launch-card">
+            <div class="master-tunnel-launch-icon">
+                <i class="fas fa-cloud-arrow-up"></i>
+            </div>
+            <h5>Panel LuCI tersedia melalui Cloudflare Tunnel</h5>
+            <p class="text-muted">
+                Panel dibuka pada tab baru agar login Cloudflare Access dan proteksi keamanan
+                LuCI dapat bekerja dengan benar.
+            </p>
+            <a
+                class="btn btn-primary"
+                href="<?php echo htmlspecialchars($masterPublicUrl); ?>"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                <i class="fas fa-shield-halved"></i> Login dan Buka LuCI
+            </a>
+        </div>
+    </div>
+    <div class="master-config-note">
+        Komputer connector harus tetap menyala dan terhubung ke Internet serta dapat menjangkau
+        master pada <strong>192.168.1.8:80</strong>.
+    </div>
+    <?php endif; ?>
 </div>
 <?php else: ?>
 <div class="master-config-panel">
@@ -507,6 +592,7 @@ $masterConfigCsrf = $_SESSION['master_config_csrf'];
 <script>
 $(function() {
     var masterConfigCsrf = <?php echo json_encode($masterConfigCsrf); ?>;
+    var useMasterServerProxy = <?php echo $useMasterServerProxy ? 'true' : 'false'; ?>;
     var zoom = parseFloat(localStorage.getItem('masterConfigZoom') || '1');
     var minZoom = 0.5;
     var maxZoom = 2;
@@ -729,8 +815,18 @@ $(function() {
         $('#desc-uptime').text('System unavailable');
     }
 
-    // Initial fetch and interval
-    updateAnalytics();
-    setInterval(updateAnalytics, 5000);
+    // The hosting server cannot reach a private LAN address and Cloudflare
+    // Access requires an interactive browser login. Only poll ubus while this
+    // dashboard itself is running inside the master's local network.
+    if (useMasterServerProxy) {
+        updateAnalytics();
+        setInterval(updateAnalytics, 5000);
+    } else {
+        $('#val-status').text('Tunnel');
+        $('#desc-status').text('Buka LuCI untuk melihat status real-time');
+        $('#card-status').removeClass('status-danger').addClass('status-success');
+        $('#val-cpu, #val-ram, #val-uptime').text('--');
+        $('#desc-cpu, #desc-ram, #desc-uptime').text('Tersedia di panel LuCI');
+    }
 });
 </script>

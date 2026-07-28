@@ -53,6 +53,84 @@ function masterDeviceIsPrivateIpv4($ip) {
     return false;
 }
 
+function masterDeviceRequestIsLocal() {
+    $requestHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    $requestHost = preg_replace('/:\d+$/', '', $requestHost);
+
+    if (
+        in_array($requestHost, ['localhost', '127.0.0.1', '::1'], true)
+        || substr($requestHost, -6) === '.local'
+    ) {
+        return true;
+    }
+
+    return masterDeviceIsPrivateIpv4($requestHost);
+}
+
+function masterDeviceCloudflareConfig() {
+    static $config = null;
+
+    if ($config !== null) {
+        return $config;
+    }
+
+    $config = [
+        'public_url' => getenv('MASTER_PUBLIC_URL')
+            ?: 'https://luci.arndilhmzbr.engineer',
+        'client_id' => getenv('CF_ACCESS_CLIENT_ID') ?: '',
+        'client_secret' => getenv('CF_ACCESS_CLIENT_SECRET') ?: '',
+    ];
+
+    $localConfigFile = __DIR__ . '/../../config/cloudflare_access.local.php';
+    if (is_file($localConfigFile)) {
+        $localConfig = require $localConfigFile;
+        if (is_array($localConfig)) {
+            $config = array_merge(
+                $config,
+                array_intersect_key($localConfig, $config)
+            );
+        }
+    }
+
+    $config['public_url'] = rtrim(trim((string) $config['public_url']), '/');
+    $config['client_id'] = trim((string) $config['client_id']);
+    $config['client_secret'] = trim((string) $config['client_secret']);
+
+    $urlParts = parse_url($config['public_url']);
+    if (
+        !$urlParts
+        || strtolower((string) ($urlParts['scheme'] ?? '')) !== 'https'
+        || empty($urlParts['host'])
+        || isset($urlParts['user'])
+        || isset($urlParts['pass'])
+        || isset($urlParts['query'])
+        || isset($urlParts['fragment'])
+    ) {
+        $config['public_url'] = 'https://luci.arndilhmzbr.engineer';
+    }
+
+    return $config;
+}
+
+function masterDeviceCloudflareServiceConfigured() {
+    $config = masterDeviceCloudflareConfig();
+
+    return $config['client_id'] !== '' && $config['client_secret'] !== '';
+}
+
+function masterDeviceCloudflareAccessHeaders() {
+    if (!masterDeviceCloudflareServiceConfigured()) {
+        return [];
+    }
+
+    $config = masterDeviceCloudflareConfig();
+
+    return [
+        'CF-Access-Client-Id: ' . $config['client_id'],
+        'CF-Access-Client-Secret: ' . $config['client_secret'],
+    ];
+}
+
 function masterDeviceNormalizeHost($value) {
     $host = strtolower(trim((string) $value));
     $host = rtrim($host, '.');
@@ -144,12 +222,27 @@ function masterDeviceGetConfig(PDO $pdo) {
         FILTER_FLAG_IPV4
     ) !== false;
 
+    $localConnectHost = $hasResolvedIp ? $resolvedIp : $host;
+    $localConnectBaseUrl = 'http://' . $localConnectHost;
+    $cloudflareConfig = masterDeviceCloudflareConfig();
+    $requestIsLocal = masterDeviceRequestIsLocal();
+    $usePublicTunnel = !$requestIsLocal
+        && masterDeviceCloudflareServiceConfigured();
+    $connectBaseUrl = $usePublicTunnel
+        ? $cloudflareConfig['public_url']
+        : $localConnectBaseUrl;
+    $connectHost = parse_url($connectBaseUrl, PHP_URL_HOST) ?: $localConnectHost;
+
     return [
         'host' => $host,
         'base_url' => 'http://' . $host,
         'resolved_ip' => $hasResolvedIp ? $resolvedIp : null,
-        'connect_host' => $hasResolvedIp ? $resolvedIp : $host,
-        'connect_base_url' => 'http://' . ($hasResolvedIp ? $resolvedIp : $host),
+        'connect_host' => $connectHost,
+        'connect_base_url' => $connectBaseUrl,
+        'public_url' => $cloudflareConfig['public_url'],
+        'request_is_local' => $requestIsLocal,
+        'cloudflare_service_configured' => masterDeviceCloudflareServiceConfigured(),
+        'uses_public_tunnel' => $usePublicTunnel,
         'environment_override' => (bool) getenv('MASTER_HOST'),
     ];
 }

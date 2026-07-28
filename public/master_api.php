@@ -83,14 +83,18 @@ $luciUser = 'root';
 $luciPass = 'psn2026';
 $tokenFile = masterDeviceTokenFile('ubus', $masterHost);
 
+function masterApiHeaders($headers = []) {
+    return array_merge($headers, masterDeviceCloudflareAccessHeaders());
+}
+
 function ubusRequest($masterBaseUrl, $sessionToken, $subsystem, $method, $params = []) {
     $ch = curl_init($masterBaseUrl . '/ubus');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_HTTPHEADER => [
+        CURLOPT_HTTPHEADER => masterApiHeaders([
             'Content-Type: application/json',
-        ],
+        ]),
         CURLOPT_POSTFIELDS => json_encode([
             'jsonrpc' => '2.0',
             'id' => 1,
@@ -113,7 +117,7 @@ function ubusLogin($masterBaseUrl, $user, $pass) {
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_HTTPHEADER => masterApiHeaders(['Content-Type: application/json']),
         CURLOPT_POSTFIELDS => json_encode([
             'jsonrpc' => '2.0',
             'id' => 1,
@@ -190,7 +194,7 @@ foreach ($calls as $key => [$subsystem, $method, $params]) {
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_HTTPHEADER => masterApiHeaders(['Content-Type: application/json']),
         CURLOPT_POSTFIELDS => json_encode([
             'jsonrpc' => '2.0',
             'id' => 1,

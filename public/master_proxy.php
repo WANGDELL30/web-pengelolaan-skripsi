@@ -40,6 +40,10 @@ $ubusTokenFile = masterDeviceTokenFile('ubus', $masterHost);
 $luciUser = 'root';
 $luciPass = 'psn2026';
 
+function masterProxyHeaders($headers = []) {
+    return array_merge($headers, masterDeviceCloudflareAccessHeaders());
+}
+
 /**
  * Get or create a valid LuCI sysauth token.
  * Caches the token in a temp file so it persists across requests.
@@ -69,10 +73,10 @@ function masterProxyGetSysauth($masterBaseUrl, $luciUser, $luciPass, $tokenFile)
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_TIMEOUT => 10,
-        CURLOPT_HTTPHEADER => [
+        CURLOPT_HTTPHEADER => masterProxyHeaders([
             'Host: ' . parse_url($masterBaseUrl, PHP_URL_HOST),
             'Content-Type: application/x-www-form-urlencoded',
-        ],
+        ]),
         CURLOPT_HEADERFUNCTION => function ($curl, $headerLine) use (&$respHeaders) {
             $line = trim($headerLine);
             if ($line !== '' && strpos($line, ':') !== false) {
@@ -126,7 +130,7 @@ function masterProxyGetUbusToken($masterBaseUrl, $luciUser, $luciPass, $tokenFil
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_HTTPHEADER => masterProxyHeaders(['Content-Type: application/json']),
         CURLOPT_POSTFIELDS => json_encode([
             'jsonrpc' => '2.0', 'id' => 1, 'method' => 'call',
             'params' => ['00000000000000000000000000000000', 'session', 'login',
@@ -239,7 +243,15 @@ function masterProxyResolveUrl($url, $currentPath, $masterHost, $proxyBasePath) 
     return masterProxyProxyUrl($resolved, $proxyBasePath);
 }
 
-function masterProxyRewriteBody($body, $contentType, $currentPath, $masterHost, $proxyBasePath, $ubusToken = '') {
+function masterProxyRewriteBody(
+    $body,
+    $contentType,
+    $currentPath,
+    $masterHost,
+    $masterBaseUrl,
+    $proxyBasePath,
+    $ubusToken = ''
+) {
     if (!preg_match('#(text/html|text/css|javascript|json|xml)#i', $contentType)) {
         return $body;
     }
@@ -312,7 +324,7 @@ function masterProxyRewriteBody($body, $contentType, $currentPath, $masterHost, 
 
     if ($isHtml && stripos($body, 'new LuCI({') !== false) {
         $proxyBaseJson = json_encode($proxyBasePath);
-        $masterBaseJson = json_encode('http://' . $masterHost);
+        $masterBaseJson = json_encode(rtrim($masterBaseUrl, '/'));
         $proxyResourceJson = json_encode(masterProxyProxyUrl('/luci-static/resources', $proxyBasePath));
         $ubusTokenJson = json_encode($ubusToken ?: '');
         $proxyUbusPath = json_encode(masterProxyProxyUrl('/ubus/', $proxyBasePath));
@@ -592,6 +604,7 @@ foreach (getallheaders() as $name => $value) {
 $requestHeaders[] = 'Host: ' . $masterHost;
 $requestHeaders[] = 'Origin: ' . $masterBaseUrl;
 $requestHeaders[] = 'Referer: ' . $masterBaseUrl . '/cgi-bin/luci/';
+$requestHeaders = masterProxyHeaders($requestHeaders);
 
 // For POST requests, ensure Content-Length is set
 if (!in_array($method, ['GET', 'HEAD'], true) && $requestBody !== '') {
@@ -758,4 +771,12 @@ $ubusToken = masterProxyGetUbusToken(
     $luciPass,
     $ubusTokenFile
 );
-echo masterProxyRewriteBody($body, $contentType, $targetPath, $masterHost, $proxyBasePath, $ubusToken);
+echo masterProxyRewriteBody(
+    $body,
+    $contentType,
+    $targetPath,
+    $masterHost,
+    $masterBaseUrl,
+    $proxyBasePath,
+    $ubusToken
+);
