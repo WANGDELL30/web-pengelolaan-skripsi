@@ -95,7 +95,7 @@ function masterApiHeaders($headers = []) {
     return array_merge($headers, masterDeviceCloudflareAccessHeaders());
 }
 
-function ubusRequest($masterBaseUrl, $sessionToken, $subsystem, $method, $params = []) {
+function ubusRequest(string $masterBaseUrl, string $sessionToken, string $subsystem, string $method, $params = []) {
     $ch = curl_init($masterBaseUrl . '/ubus');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
@@ -114,13 +114,13 @@ function ubusRequest($masterBaseUrl, $sessionToken, $subsystem, $method, $params
     ]);
     $result = curl_exec($ch);
     $err = curl_errno($ch);
-    curl_close($ch);
+    unset($ch);
 
     if ($err || $result === false) return null;
     return json_decode($result, true);
 }
 
-function ubusLogin($masterBaseUrl, $user, $pass) {
+function ubusLogin(string $masterBaseUrl, string $user, string $pass) {
     $ch = curl_init($masterBaseUrl . '/ubus');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
@@ -142,7 +142,7 @@ function ubusLogin($masterBaseUrl, $user, $pass) {
     ]);
     $result = curl_exec($ch);
     $err = curl_errno($ch);
-    curl_close($ch);
+    unset($ch);
 
     if ($err || $result === false) return null;
 
@@ -153,7 +153,7 @@ function ubusLogin($masterBaseUrl, $user, $pass) {
     return null;
 }
 
-function getSessionToken($masterBaseUrl, $user, $pass, $tokenFile) {
+function getSessionToken(string $masterBaseUrl, string $user, string $pass, string $tokenFile) {
     // Check cached token
     if (file_exists($tokenFile)) {
         $cached = json_decode(file_get_contents($tokenFile), true);
@@ -241,9 +241,9 @@ foreach ($handles as $key => $ch) {
     }
 
     curl_multi_remove_handle($mh, $ch);
-    curl_close($ch);
+    unset($ch);
 }
 
-curl_multi_close($mh);
+unset($mh);
 
 echo json_encode($results);

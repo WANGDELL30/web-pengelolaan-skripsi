@@ -94,7 +94,7 @@ function masterProxyGetSysauth(string $masterBaseUrl, string $luciUser, string $
         },
     ]);
     curl_exec($ch);
-    curl_close($ch);
+    unset($ch);
 
     // Extract sysauth cookie from response
     $sysauth = '';
@@ -147,7 +147,7 @@ function masterProxyGetUbusToken(string $masterBaseUrl, string $luciUser, string
         CURLOPT_TIMEOUT => 10,
     ]);
     $result = curl_exec($ch);
-    curl_close($ch);
+    unset($ch);
     $data = json_decode($result ?: '', true);
     $token = $data['result'][1]['ubus_rpc_session'] ?? null;
     if ($token) {
@@ -680,7 +680,7 @@ if ($forwardCookie !== '') {
 $body = curl_exec($ch);
 $curlError = curl_error($ch);
 $curlStatus = curl_errno($ch);
-curl_close($ch);
+unset($ch);
 
 // If we got 403, token may be expired - retry with fresh login
 if ($statusCode === 403 || ($statusCode >= 300 && $statusCode < 400 && stripos(implode(' ', array_map(function($h) { return $h[1]; }, $responseHeaders)), 'login') !== false)) {
@@ -724,7 +724,7 @@ if ($statusCode === 403 || ($statusCode >= 300 && $statusCode < 400 && stripos(i
         $body = curl_exec($ch);
         $curlError = curl_error($ch);
         $curlStatus = curl_errno($ch);
-        curl_close($ch);
+        unset($ch);
     }
 }
 
