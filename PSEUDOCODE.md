@@ -8,14 +8,16 @@
 ## Daftar Isi
 
 1. [Konfigurasi Koneksi Database](#1-konfigurasi-koneksi-database)
-2. [Algoritma Autentikasi Pengguna](#2-algoritma-autentikasi-pengguna)
+2. [Algoritma Autentikasi Pengguna & Keamanan Sesi](#2-algoritma-autentikasi-pengguna--keamanan-sesi)
 3. [Algoritma Pengambilan Statistik Dashboard](#3-algoritma-pengambilan-statistik-dashboard)
 4. [Algoritma Pengambilan Data Grafik](#4-algoritma-pengambilan-data-grafik)
 5. [Fungsi-Fungsi Kalkulasi Metrik Jaringan](#5-fungsi-fungsi-kalkulasi-metrik-jaringan)
 6. [Algoritma Penentuan Status Sistem](#6-algoritma-penentuan-status-sistem)
-7. [Algoritma Manajemen Hak Akses](#7-algoritma-manajemen-hak-akses)
-8. [Algoritma Sanitasi Input](#8-algoritma-sanitasi-input)
-9. [Alur Sistem Keseluruhan](#9-alur-sistem-keseluruhan)
+7. [Algoritma Manajemen Hak Akses (RBAC)](#7-algoritma-manajemen-hak-akses-rbac)
+8. [Algoritma Sanitasi Input & Keamanan](#8-algoritma-sanitasi-input--keamanan)
+9. [Algoritma Interoperabilitas Master Device & Reverse Proxy (LuCI)](#9-algoritma-interoperabilitas-master-device--reverse-proxy-luci)
+10. [Algoritma Receiver Pesan IoT & Autentikasi Device Token](#10-algoritma-receiver-pesan-iot--autentikasi-device-token)
+11. [Alur Sistem Keseluruhan](#11-alur-sistem-keseluruhan)
 
 ---
 
@@ -88,9 +90,9 @@ END
 
 ---
 
-## 2. Algoritma Autentikasi Pengguna
+## 2. Algoritma Autentikasi Pengguna & Keamanan Sesi
 
-Pseudocode ini menggambarkan proses login, proteksi halaman, dan logout pengguna.
+Pseudocode ini menggambarkan proses login, proteksi sesi (regenerasi ID sesi untuk mencegah Session Fixation), proteksi halaman, dan logout pengguna.
 
 ```
 KELAS LoginController
@@ -111,7 +113,7 @@ BEGIN
         Tampilkan view halaman login
     END
 
-    // Proses Login
+    // Proses Login & Proteksi Sesi
     PROSEDUR login()
     BEGIN
         JIKA method request bukan POST MAKA
@@ -124,15 +126,19 @@ BEGIN
         user ← fetchOne("SELECT * FROM users WHERE username = ?", [username])
 
         JIKA user ditemukan DAN password_verify(password, user.password) = BENAR MAKA
+            // Regenerasi ID sesi untuk mencegah serangan Session Fixation
+            session_regenerate_id(BENAR)
+
             Simpan ke sesi:
                 SESSION["user_id"]   ← user.id
                 SESSION["username"]  ← user.username
                 SESSION["user_role"] ← user.role
-                SESSION["full_name"] ← user.full_name
+                SESSION["full_name"] ← user.full_name ?: user.username
+
             Redirect ke halaman utama (index.php)
         SEBALIKNYA
             SESSION["error"] ← "Username atau password salah"
-            Redirect ke halaman login (index.php)
+            Redirect ke halaman login (index.php?action=login_form)
         AKHIR JIKA
     END
 
@@ -680,8 +686,8 @@ END
 
 FUNGSI canManageProject()
 BEGIN
-    // Admin dan researcher boleh mengelola, viewer hanya boleh melihat
-    KEMBALIKAN (isLoggedIn() DAN BUKAN isViewerRole())
+    // Hanya pengguna ber-role 'admin' yang memiliki hak manajemen penuh; viewer bersifat read-only
+    KEMBALIKAN (isLoggedIn() DAN checkRole("admin"))
 END
 ```
 
@@ -709,9 +715,140 @@ END
 
 ---
 
-## 9. Alur Sistem Keseluruhan
+## 9. Algoritma Interoperabilitas Master Device & Reverse Proxy (LuCI)
 
-Pseudocode ini menggambarkan alur utama sistem dari awal hingga tampilan dashboard.
+Pseudocode ini menggambarkan mekanisme pembacaan konfigurasi perangkat master (OpenWRT/OpenMANET Argon) dan reverse proxy lokal untuk mem-bypass proteksi `X-Frame-Options: SAMEORIGIN` dari LuCI agar panel dapat diintegrasikan secara aman ke dalam `<iframe>` dashboard.
+
+```
+FUNGSI MuatKonfigurasiMaster()
+BEGIN
+    config ← {}
+
+    // Prioritas 1: File konfigurasi lokal (config/master.local.php)
+    JIKA file_exists("config/master.local.php") MAKA
+        config ← Muat file "config/master.local.php"
+    AKHIR JIKA
+
+    // Prioritas 2: Environment Variable override atau Fallback Default
+    masterHost ← ENV["MASTER_HOST"] ?: config["master_host"] ?: "192.168.1.50"
+    luciUser   ← ENV["LUCI_USER"]   ?: config["luci_user"]   ?: "root"
+    luciPass   ← ENV["LUCI_PASS"]   ?: config["luci_pass"]   ?: "psn2026"
+
+    KEMBALIKAN {
+        host     : masterHost,
+        user     : luciUser,
+        pass     : luciPass,
+        base_url : "http://" + masterHost
+    }
+END
+
+PROSEDUR InisialisasiMasterProxy()
+BEGIN
+    // 1. Verifikasi Hak Akses Admin
+    JIKA BUKAN isLoggedIn() ATAU BUKAN canManageProject() MAKA
+        Tampilkan HTTP 403 Forbidden ("Akses panel master khusus Admin")
+        Hentikan eksekusi
+    AKHIR JIKA
+
+    session_write_close() // Lepaskan lock sesi aplikasi agar request cURL parallel
+
+    // 2. Dapatkan Konfigurasi Master Device
+    master ← MuatKonfigurasiMaster()
+
+    // 3. Ambil atau Buat Token Sysauth LuCI (Auto-Login Cookie)
+    sysauthToken ← DapatkanLuciSysauth(master.base_url, master.user, master.pass)
+
+    // 4. Forwarding Request ke Panel LuCI Router
+    targetPath ← NormalisasiPath(GET["path"] ?: "/cgi-bin/luci/admin/status/overview")
+    targetUrl  ← master.base_url + targetPath
+
+    response ← KirimRequestcURL(
+        url     : targetUrl,
+        method  : HTTP_METHOD,
+        headers : ForwardHeaders(),
+        cookie  : sysauthToken
+    )
+
+    // 5. Apabila Token Kedaluwarsa (HTTP 403), Re-autentikasi Ulang
+    JIKA response.status = 403 MAKA
+        HapusCacheToken()
+        sysauthToken ← DapatkanLuciSysauth(master.base_url, master.user, master.pass)
+        response     ← UlangiKirimRequestcURL(targetUrl, sysauthToken)
+    AKHIR JIKA
+
+    // 6. Rewrite HTML/CSS/JS URL & Inject Script Runtime Proxy
+    ubusToken     ← DapatkanLuciUbusToken(master.base_url, master.user, master.pass)
+    bodyRewritten ← RewriteUrlAndResources(
+        body          : response.body,
+        contentType   : response.contentType,
+        targetPath    : targetPath,
+        proxyBasePath : SCRIPT_NAME,
+        ubusToken     : ubusToken
+    )
+
+    Tampilkan bodyRewritten
+END
+```
+
+---
+
+## 10. Algoritma Receiver Pesan IoT & Autentikasi Device Token
+
+Pseudocode ini menggambarkan endpoint penerima pesan teks dari node/slave (ESP32 atau Raspberry Pi) dengan proteksi autentikasi token statis (`X-Device-Token`).
+
+```
+PROSEDUR ReceiverPesanIoT()
+BEGIN
+    Set Header Response: Application/JSON
+
+    // 1. Tangani Preflight Request CORS (OPTIONS)
+    JIKA REQUEST_METHOD = "OPTIONS" MAKA
+        Hentikan eksekusi dengan HTTP 200 OK
+    AKHIR JIKA
+
+    // 2. Dapatkan Token Ekspektasi (Env -> Config -> Default)
+    masterConfig  ← MuatKonfigurasiMaster()
+    expectedToken ← ENV["INBOX_TOKEN"] ?: masterConfig["inbox_token"] ?: "halow-inbox-2026"
+
+    // 3. Baca Token Perangkat dari Header atau Query/Post Parameter
+    receivedToken ← HEADER["X-Device-Token"] ?: GET["token"] ?: POST["token"]
+
+    JIKA trim(receivedToken) ≠ expectedToken MAKA
+        Set HTTP Status 401 Unauthorized
+        KEMBALIKAN JSON { ok: PALSU, error: "unauthorized: invalid or missing device token" }
+        Hentikan eksekusi
+    AKHIR JIKA
+
+    // 4. Baca dan Validasi Payload JSON Pesan
+    payload ← DecodedJSON(POST_BODY)
+
+    JIKA payload TIDAK VALID MAKA
+        Set HTTP Status 400 Bad Request
+        KEMBALIKAN JSON { ok: PALSU, error: "invalid json payload" }
+        Hentikan eksekusi
+    AKHIR JIKA
+
+    // 5. Simpan Pesan ke Basis Data
+    COBA
+        Simpan ke basis data:
+            node_id   : payload["node_id"]
+            message   : payload["message"]
+            timestamp : CURRENT_TIMESTAMP
+
+        Set HTTP Status 200 OK
+        KEMBALIKAN JSON { ok: BENAR, message: "Pesan berhasil disimpan" }
+    TANGKAP Exception e
+        Set HTTP Status 500 Internal Error
+        KEMBALIKAN JSON { ok: PALSU, error: "Gagal menyimpan pesan" }
+    AKHIR COBA
+END
+```
+
+---
+
+## 11. Alur Sistem Keseluruhan
+
+Pseudocode ini menggambarkan alur utama sistem dari awal hingga tampilan dashboard dan integrasi modul pendukung.
 
 ```
 PROGRAM SistemPemantauanWiFiHaLow
@@ -726,12 +863,23 @@ BEGIN
         controller ← LoginController(pdo)
         controller.index()         // Tampilkan halaman login
         JIKA POST request masuk MAKA
-            controller.login()     // Proses login
+            controller.login()     // Proses login & regenerasi session ID
         AKHIR JIKA
         Hentikan eksekusi
     AKHIR JIKA
 
-    // === DASHBOARD ===
+    // === ROUTING AKSI KHUSUS ===
+    JIKA GET["action"] = "master_proxy" MAKA
+        InisialisasiMasterProxy()   // Load panel LuCI via reverse proxy
+        Hentikan eksekusi
+    AKHIR JIKA
+
+    JIKA PATH = "text_message_inbox.php" MAKA
+        ReceiverPesanIoT()         // Proses pesan masuk dari slave IoT
+        Hentikan eksekusi
+    AKHIR JIKA
+
+    // === DASHBOARD UTAMA ===
     dashboardController ← DashboardController(pdo)
 
     // Ambil data statistik ringkasan
@@ -787,40 +935,40 @@ END PROGRAM
                     ┌─────────────────────────────────────┐
                     │         AUTENTIKASI                  │
                     │   isLoggedIn() → Session Check       │
-                    │   login() → password_verify()        │
+                    │   login() → session_regenerate_id()  │
                     └──────────────┬──────────────────────┘
                                    │ Login berhasil
                                    ▼
-          ┌────────────────────────────────────────────────────┐
-          │              DASHBOARD CONTROLLER                   │
-          │  ┌─────────────┐  ┌──────────────┐  ┌──────────┐  │
-          │  │  getStats() │  │getRecentTests│  │getChart  │  │
-          │  │             │  │    ()        │  │  Data()  │  │
-          │  └──────┬──────┘  └──────┬───────┘  └────┬─────┘  │
-          └─────────┼────────────────┼───────────────┼────────┘
-                    │                │               │
-                    ▼                ▼               ▼
-          ┌─────────────────────────────────────────────────────┐
-          │                    DATABASE                          │
-          │  connectivity_tests │ range_tests │ latency_tests    │
-          │  throughput_tests   │ interference_tests             │
-          │  signal_penetration │ power_consumption_tests        │
-          │  slave_camera_tests │ command_execution_tests        │
-          └─────────────────────────────────────────────────────┘
-                    │
-                    ▼
-          ┌─────────────────────────────────────────────────────┐
-          │              FUNGSI KALKULASI                        │
-          │  calculatePacketLoss()    │ calculateThroughput()    │
-          │  calculateFSPL()          │ calculatePower()         │
-          │  determineSystemStatus()  │ determineConnectionQual  │
-          └─────────────────────────────────────────────────────┘
-                    │
-                    ▼
-          ┌─────────────────────────────────────────────────────┐
-          │                TAMPILAN / VIEW                       │
-          │         Dashboard dengan Grafik dan Tabel            │
-          └─────────────────────────────────────────────────────┘
+          ┌────────────────────────────────────────────────────────┐
+          │              DASHBOARD CONTROLLER                      │
+          │  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐  │
+          │  │  getStats() │  │getRecentTests│  │ getChartData │  │
+          │  └──────┬──────┘  └──────┬───────┘  └──────┬───────┘  │
+          └─────────┼────────────────┼─────────────────┼──────────┘
+                    │                │                 │
+                    ▼                ▼                 ▼
+          ┌────────────────────────────────────────────────────────┐
+          │                    DATABASE                            │
+          │  connectivity_tests │ range_tests │ latency_tests      │
+          │  throughput_tests   │ interference_tests               │
+          │  signal_penetration │ power_consumption_tests          │
+          │  slave_camera_tests │ command_execution_tests          │
+          │  text_messages      │ app_settings                     │
+          └──────────────────────────┬─────────────────────────────┘
+                                     │
+                                     ▼
+          ┌────────────────────────────────────────────────────────┐
+          │              FUNGSI KALKULASI & MODUL                  │
+          │  calculatePacketLoss()    │ calculateThroughput()      │
+          │  determineSystemStatus()  │ MasterProxy (LuCI)         │
+          │  ReceiverPesanIoT         │ canManageProject (RBAC)    │
+          └──────────────────────────┬─────────────────────────────┘
+                                     │
+                                     ▼
+          ┌────────────────────────────────────────────────────────┐
+          │                TAMPILAN / VIEW                         │
+          │         Dashboard dengan Grafik, Tabel & Master Panel  │
+          └────────────────────────────────────────────────────────┘
 ```
 
 ---
