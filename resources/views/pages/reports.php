@@ -173,6 +173,7 @@ $matrixRows = fetchAll("
         r.test_date,
         r.location_name,
         r.environment_type,
+        r.measurement_code,
         r.distance_actual_meter,
         r.connection_status AS range_connection_status,
         r.rssi_dbm,
@@ -193,27 +194,36 @@ $matrixRows = fetchAll("
         p.bitrate_kbps AS penetration_throughput_kbps,
         i.interference_level,
         i.interference_source,
+        i.scan_status,
+        i.noise_floor_dbm,
+        i.strongest_interferer_frequency_mhz,
+        i.strongest_interferer_power_dbm,
         i.throughput_kbps AS obstruction_throughput_kbps,
         i.latency_ms AS obstruction_latency_ms
     FROM range_tests r
     LEFT JOIN connectivity_tests c
-        ON c.test_date = r.test_date
+        ON c.measurement_code = r.measurement_code
+        AND c.test_date = r.test_date
         AND c.location_name = r.location_name
         AND c.distance_meter = r.distance_actual_meter
     LEFT JOIN latency_tests l
-        ON l.test_date = r.test_date
+        ON l.measurement_code = r.measurement_code
+        AND l.test_date = r.test_date
         AND l.location_name = r.location_name
         AND l.distance_meter = r.distance_actual_meter
     LEFT JOIN throughput_tests t
-        ON t.test_date = r.test_date
+        ON t.measurement_code = r.measurement_code
+        AND t.test_date = r.test_date
         AND t.location_name = r.location_name
         AND t.distance_meter = r.distance_actual_meter
     LEFT JOIN signal_penetration_tests p
-        ON p.test_date = r.test_date
+        ON p.measurement_code = r.measurement_code
+        AND p.test_date = r.test_date
         AND p.location_name = r.location_name
         AND p.distance_meter = r.distance_actual_meter
     LEFT JOIN interference_tests i
-        ON i.test_date = r.test_date
+        ON i.measurement_code = r.measurement_code
+        AND i.test_date = r.test_date
         AND i.location_name = r.location_name
         AND i.distance_meter = r.distance_actual_meter
     $whereSql
@@ -667,7 +677,7 @@ $technicalSources = [
                                 <th colspan="2" data-group="timing">Timing</th>
                                 <th colspan="3" data-group="transfer">Transfer data</th>
                                 <th colspan="4" data-group="obstacle">Penetrasi obstacle</th>
-                                <th colspan="4" data-group="interference">Interferensi</th>
+                                <th colspan="6" data-group="interference">Interferensi RF</th>
                             </tr>
                             <tr>
                                 <th data-group="identity">Point</th><th data-group="identity">Tanggal</th><th data-group="identity">Lokasi</th><th data-group="identity">Env.</th><th data-group="identity">Jarak</th>
@@ -676,12 +686,12 @@ $technicalSources = [
                                 <th data-group="timing">Latency</th><th data-group="timing">Jitter</th>
                                 <th data-group="transfer">Throughput</th><th data-group="transfer">PDR</th><th data-group="transfer">Data Loss</th>
                                 <th data-group="obstacle">Obstacle</th><th data-group="obstacle">Kondisi</th><th data-group="obstacle">Pen. Loss</th><th data-group="obstacle">Obs. Throughput</th>
-                                <th data-group="interference">Level</th><th data-group="interference">Source</th><th data-group="interference">Throughput</th><th data-group="interference">Latency</th>
+                                <th data-group="interference">SDR Status</th><th data-group="interference">Noise Floor</th><th data-group="interference">Strongest Freq.</th><th data-group="interference">Strongest Power</th><th data-group="interference">Throughput</th><th data-group="interference">Latency</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($matrixRows as $row): ?>
-                                <?php $searchText = strtolower(implode(' ', array_filter([$row['test_point_code'], $row['test_date'], $row['location_name'], $row['environment_type'], $row['connection_status'], $row['obstacle_type'], $row['condition_type'], $row['interference_level'], $row['interference_source']]))); ?>
+                                <?php $searchText = strtolower(implode(' ', array_filter([$row['test_point_code'], $row['measurement_code'], $row['test_date'], $row['location_name'], $row['environment_type'], $row['connection_status'], $row['obstacle_type'], $row['condition_type'], $row['scan_status'], $row['interference_source']]))); ?>
                                 <tr data-matrix-search="<?php echo htmlspecialchars($searchText); ?>">
                                     <td data-group="identity"><strong><?php echo htmlspecialchars($row['test_point_code'] ?? '-'); ?></strong></td>
                                     <td data-group="identity"><?php echo htmlspecialchars(formatDate($row['test_date'])); ?></td>
@@ -704,8 +714,10 @@ $technicalSources = [
                                     <td data-group="obstacle"><?php echo htmlspecialchars($row['condition_type'] ?? '-'); ?></td>
                                     <td data-group="obstacle"><?php echo reportNumber($row['penetration_loss_db'], 2, 'dB'); ?></td>
                                     <td data-group="obstacle"><?php echo reportNumber($row['penetration_throughput_kbps'], 2, 'kbps'); ?></td>
-                                    <td data-group="interference"><?php echo reportStatusBadge($row['interference_level'] ?? '-'); ?></td>
-                                    <td data-group="interference"><?php echo htmlspecialchars($row['interference_source'] ?? '-'); ?></td>
+                                    <td data-group="interference"><?php echo reportStatusBadge($row['scan_status'] ?? '-'); ?></td>
+                                    <td data-group="interference"><?php echo reportNumber($row['noise_floor_dbm'], 2, 'dBm'); ?></td>
+                                    <td data-group="interference"><?php echo reportNumber($row['strongest_interferer_frequency_mhz'], 2, 'MHz'); ?></td>
+                                    <td data-group="interference"><?php echo reportNumber($row['strongest_interferer_power_dbm'], 2, 'dBm'); ?></td>
                                     <td data-group="interference"><?php echo reportNumber($row['obstruction_throughput_kbps'], 2, 'kbps'); ?></td>
                                     <td data-group="interference"><?php echo reportNumber($row['obstruction_latency_ms'], 2, 'ms'); ?></td>
                                 </tr>
