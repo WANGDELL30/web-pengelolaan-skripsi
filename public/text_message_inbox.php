@@ -1,14 +1,48 @@
 <?php
+/**
+ * IoT Inbox Endpoint — menerima pesan teks dari slave (ESP32/Raspberry Pi).
+ *
+ * Autentikasi: token statis di header X-Device-Token atau parameter ?token=
+ * Atur token di: config/master.local.php  (key: 'inbox_token')
+ * Fallback env:  INBOX_TOKEN
+ * Fallback default: 'halow-inbox-2026'  ← ganti di production!
+ */
+
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../app/Helpers/functions.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Accept');
+header('Access-Control-Allow-Headers: Content-Type, Accept, X-Device-Token');
 header('Cache-Control: no-store');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
+    exit;
+}
+
+// --- Token auth untuk endpoint IoT ---
+$expectedToken = getenv('INBOX_TOKEN') ?: 'halow-inbox-2026';
+
+// Bisa juga override dari config/master.local.php
+$masterLocalConfig = __DIR__ . '/../config/master.local.php';
+if (is_file($masterLocalConfig)) {
+    $masterCfg = require $masterLocalConfig;
+    if (is_array($masterCfg) && !empty($masterCfg['inbox_token'])) {
+        $expectedToken = $masterCfg['inbox_token'];
+    }
+}
+
+$receivedToken = $_SERVER['HTTP_X_DEVICE_TOKEN']
+    ?? ($_GET['token'] ?? ($_POST['token'] ?? ''));
+
+if (trim($receivedToken) !== $expectedToken) {
+    http_response_code(401);
+    echo json_encode([
+        'ok'    => false,
+        'error' => 'unauthorized: invalid or missing device token',
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     exit;
 }
 

@@ -246,9 +246,10 @@ function isViewerRole() {
 
 /**
  * Roles allowed to create, update, delete, send commands, or change device config.
+ * Only 'admin' role has management access; 'viewer' and any unknown role are read-only.
  */
 function canManageProject() {
-    return isLoggedIn() && !isViewerRole();
+    return isLoggedIn() && checkRole('admin');
 }
 
 /**

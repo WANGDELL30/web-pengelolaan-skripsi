@@ -54,15 +54,19 @@ class LoginController {
             $user = fetchOne("SELECT * FROM users WHERE username = ?", [$username]);
             
             if ($user && password_verify($password, $user['password'])) {
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['username'] = $user['username'];
+                // Regenerasi session ID setelah login berhasil (cegah session fixation)
+                session_regenerate_id(true);
+
+                $_SESSION['user_id']   = $user['id'];
+                $_SESSION['username']  = $user['username'];
                 $_SESSION['user_role'] = $user['role'];
-                $_SESSION['full_name'] = $user['full_name'];
+                // Pastikan full_name tidak null — fallback ke username
+                $_SESSION['full_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
                 
                 redirect('index.php');
             } else {
                 $_SESSION['error'] = 'Username atau password salah';
-                redirect('index.php');
+                redirect('index.php?action=login_form');
             }
         }
     }

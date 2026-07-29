@@ -6,10 +6,13 @@
 require_once __DIR__ . '/../Helpers/functions.php';
 
 class DashboardController {
-    private $pdo;
-    
+    /**
+     * @param \PDO $pdo  Disimpan untuk kompatibilitas — semua query saat ini
+     *                   menggunakan fungsi global (fetchOne/fetchAll) dari database.php.
+     */
     public function __construct($pdo) {
-        $this->pdo = $pdo;
+        // $pdo tersedia jika nanti dibutuhkan untuk refactor ke non-global query
+        unset($pdo);
     }
     
     /**

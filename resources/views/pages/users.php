@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_user_form'] ?? '') === 'u
     }
 }
 
-$users = fetchAll("SELECT id, username, role, full_name, email, notes, created_at, updated_at FROM users ORDER BY FIELD(role, 'admin', 'viewer', 'operator'), username ASC");
+$users = fetchAll("SELECT id, username, role, full_name, email, notes, created_at, updated_at FROM users ORDER BY FIELD(role, 'admin', 'viewer'), username ASC");
 $userMap = [];
 foreach ($users as $user) {
     $userMap[(string) $user['id']] = $user;

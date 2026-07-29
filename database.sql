@@ -6,11 +6,15 @@ CREATE DATABASE IF NOT EXISTS wifi_holow_testing;
 USE wifi_holow_testing;
 
 -- Users table
+-- Role: 'admin' = akses penuh | 'viewer' = read-only
+-- Catatan migrasi: jika database sudah ada, jalankan:
+--   ALTER TABLE users MODIFY COLUMN role ENUM('admin','viewer') DEFAULT 'viewer';
+--   UPDATE users SET role = 'viewer' WHERE role = 'operator';
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'operator', 'viewer') DEFAULT 'operator',
+    role ENUM('admin', 'viewer') DEFAULT 'viewer',
     full_name VARCHAR(100),
     email VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

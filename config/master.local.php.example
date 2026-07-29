@@ -1,0 +1,19 @@
+<?php
+/**
+ * Konfigurasi lokal untuk master device (LuCI panel) dan IoT endpoint.
+ * SALIN file ini menjadi config/master.local.php lalu isi sesuai lingkungan.
+ * File master.local.php sudah di-gitignore, jadi aman dari leak ke GitHub.
+ */
+
+return [
+    // IP address perangkat master WiFi HaLow
+    'master_host' => '192.168.1.50',
+
+    // Kredensial login LuCI (panel router OpenWRT/OpenMANET Argon)
+    'luci_user' => 'root',
+    'luci_pass' => 'ganti_password_ini',
+
+    // Token autentikasi untuk endpoint IoT (text_message_inbox.php)
+    // Atur token yang sama di firmware ESP32/slave
+    'inbox_token' => 'ganti_token_ini',
+];

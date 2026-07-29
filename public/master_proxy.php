@@ -29,16 +29,23 @@ if (!canManageProject()) {
 $appSessionName = session_name();
 session_write_close();
 
+$_masterCfg = [];
+$_masterLocalFile = __DIR__ . '/../config/master.local.php';
+if (is_file($_masterLocalFile)) {
+    $_masterCfg = require $_masterLocalFile;
+}
+
 $masterConfig = masterDeviceGetConfig($pdo);
 $masterHost = $masterConfig['connect_host'];
 $masterBaseUrl = $masterConfig['connect_base_url'];
+$luciUser = getenv('LUCI_USER') ?: ($_masterCfg['luci_user'] ?? 'root');
+$luciPass = getenv('LUCI_PASS') ?: ($_masterCfg['luci_pass'] ?? 'psn2026');
+unset($_masterCfg, $_masterLocalFile);
+
 $proxyBasePath = $_SERVER['SCRIPT_NAME'] ?? ('/' . basename(__FILE__));
 $sysauthTokenFile = masterDeviceTokenFile('sysauth', $masterHost);
 $ubusTokenFile = masterDeviceTokenFile('ubus', $masterHost);
 
-// LuCI auto-login credentials
-$luciUser = 'root';
-$luciPass = 'psn2026';
 
 function masterProxyHeaders($headers = []) {
     return array_merge($headers, masterDeviceCloudflareAccessHeaders());

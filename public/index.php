@@ -35,6 +35,7 @@ if (isset($_GET['action'])) {
     } elseif ($_GET['action'] === 'logout') {
         $loginController->logout();
     }
+    // 'login_form' → jatuh ke pengecekan isLoggedIn di bawah, lalu tampilkan form login
 }
 
 // Check authentication

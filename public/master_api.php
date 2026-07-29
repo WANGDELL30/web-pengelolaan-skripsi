@@ -76,11 +76,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
 session_write_close();
 
+$_masterCfg = [];
+$_masterLocalFile = __DIR__ . '/../config/master.local.php';
+if (is_file($_masterLocalFile)) {
+    $_masterCfg = require $_masterLocalFile;
+}
+
 $masterConfig = masterDeviceGetConfig($pdo);
 $masterHost = $masterConfig['connect_host'];
 $masterBaseUrl = $masterConfig['connect_base_url'];
-$luciUser = 'root';
-$luciPass = 'psn2026';
+$luciUser = getenv('LUCI_USER') ?: ($_masterCfg['luci_user'] ?? 'root');
+$luciPass = getenv('LUCI_PASS') ?: ($_masterCfg['luci_pass'] ?? 'psn2026');
+unset($_masterCfg, $_masterLocalFile);
+
 $tokenFile = masterDeviceTokenFile('ubus', $masterHost);
 
 function masterApiHeaders($headers = []) {
