@@ -47,7 +47,7 @@ $sysauthTokenFile = masterDeviceTokenFile('sysauth', $masterHost);
 $ubusTokenFile = masterDeviceTokenFile('ubus', $masterHost);
 
 
-function masterProxyHeaders($headers = []) {
+function masterProxyHeaders(array $headers = []): array {
     return array_merge($headers, masterDeviceCloudflareAccessHeaders());
 }
 
@@ -55,7 +55,7 @@ function masterProxyHeaders($headers = []) {
  * Get or create a valid LuCI sysauth token.
  * Caches the token in a temp file so it persists across requests.
  */
-function masterProxyGetSysauth($masterBaseUrl, $luciUser, $luciPass, $tokenFile) {
+function masterProxyGetSysauth(string $masterBaseUrl, string $luciUser, string $luciPass, string $tokenFile): string {
     // Check cached token
     if (file_exists($tokenFile)) {
         $cached = json_decode(file_get_contents($tokenFile), true);
@@ -118,7 +118,7 @@ function masterProxyGetSysauth($masterBaseUrl, $luciUser, $luciPass, $tokenFile)
 /**
  * Invalidate cached LuCI token so next request re-authenticates.
  */
-function masterProxyInvalidateToken($sysauthTokenFile, $ubusTokenFile) {
+function masterProxyInvalidateToken(string $sysauthTokenFile, string $ubusTokenFile): void {
     @unlink($sysauthTokenFile);
     @unlink($ubusTokenFile);
 }
@@ -126,7 +126,7 @@ function masterProxyInvalidateToken($sysauthTokenFile, $ubusTokenFile) {
 /**
  * Get a ubus RPC session token via ubus login.
  */
-function masterProxyGetUbusToken($masterBaseUrl, $luciUser, $luciPass, $tokenFile) {
+function masterProxyGetUbusToken(string $masterBaseUrl, string $luciUser, string $luciPass, string $tokenFile): string {
     if (file_exists($tokenFile)) {
         $cached = json_decode(file_get_contents($tokenFile), true);
         if ($cached && !empty($cached['token']) && ($cached['expires'] ?? 0) > time()) {
@@ -170,7 +170,7 @@ if (!function_exists('getallheaders')) {
     }
 }
 
-function masterProxyPath($value) {
+function masterProxyPath(?string $value): string {
     $path = (string) $value;
 
     if ($path === '') {
@@ -188,7 +188,7 @@ function masterProxyPath($value) {
     return $path;
 }
 
-function masterProxyNormalizePath($path) {
+function masterProxyNormalizePath(string $path): string {
     $parts = [];
     foreach (explode('/', $path) as $part) {
         if ($part === '' || $part === '.') {
@@ -204,12 +204,12 @@ function masterProxyNormalizePath($path) {
     return '/' . implode('/', $parts);
 }
 
-function masterProxyProxyUrl($path, $proxyBasePath) {
+function masterProxyProxyUrl(string $path, string $proxyBasePath): string {
     $path = masterProxyPath($path);
     return $proxyBasePath . '?path=' . rawurlencode($path);
 }
 
-function masterProxyResolveUrl($url, $currentPath, $masterHost, $proxyBasePath) {
+function masterProxyResolveUrl(?string $url, string $currentPath, string $masterHost, string $proxyBasePath): string {
     $url = trim((string) $url);
 
     if ($url === '' || $url[0] === '#' || preg_match('#^(data|mailto|tel|javascript):#i', $url)) {
@@ -251,14 +251,14 @@ function masterProxyResolveUrl($url, $currentPath, $masterHost, $proxyBasePath) 
 }
 
 function masterProxyRewriteBody(
-    $body,
-    $contentType,
-    $currentPath,
-    $masterHost,
-    $masterBaseUrl,
-    $proxyBasePath,
-    $ubusToken = ''
-) {
+    string $body,
+    string $contentType,
+    string $currentPath,
+    string $masterHost,
+    string $masterBaseUrl,
+    string $proxyBasePath,
+    string $ubusToken = ''
+): string {
     if (!preg_match('#(text/html|text/css|javascript|json|xml)#i', $contentType)) {
         return $body;
     }
@@ -540,13 +540,13 @@ HTML;
     return $body;
 }
 
-function masterProxyRewriteCookie($cookie) {
+function masterProxyRewriteCookie(string $cookie): string {
     $cookie = preg_replace('/;\s*domain=[^;]*/i', '', $cookie);
     $cookie = preg_replace('/;\s*path=[^;]*/i', '; Path=/', $cookie);
     return $cookie;
 }
 
-function masterProxyForwardCookieHeader($cookieHeader, $appSessionName) {
+function masterProxyForwardCookieHeader(?string $cookieHeader, string $appSessionName): string {
     $cookies = [];
 
     foreach (explode(';', (string) $cookieHeader) as $cookie) {
